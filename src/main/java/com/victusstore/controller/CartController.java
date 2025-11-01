@@ -1,21 +1,29 @@
 package com.victusstore.controller;
 
 import com.victusstore.model.Cart;
+import com.victusstore.model.CartProduct;
 import com.victusstore.repository.CartRepository;
+import com.victusstore.repository.CartProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/carts")
+@CrossOrigin(origins = "*")
 public class CartController {
 
     @Autowired
     private CartRepository cartRepository;
+
+    @Autowired
+    private CartProductRepository cartProductRepository;
 
     @GetMapping
     public ResponseEntity<List<Cart>> getAllCarts() {
@@ -65,5 +73,84 @@ public class CartController {
                     return ResponseEntity.ok(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/sync")
+    public ResponseEntity<?> syncCart(@RequestBody Map<String, Object> data) {
+        try {
+            String email = (String) data.get("email");
+            if (email == null || email.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+            }
+
+            // Get or create cart for user
+            Optional<Cart> cartOpt = cartRepository.findByAccount_Email(email);
+            Cart cart;
+            if (cartOpt.isPresent()) {
+                cart = cartOpt.get();
+            } else {
+                cart = new Cart();
+                cart.setEmail(email);
+                cart.setTotalPrice(BigDecimal.ZERO);
+                cart.setIsActive(true);
+                cart = cartRepository.save(cart);
+            }
+
+            // Calculate total from cart products
+            List<CartProduct> cartProducts = cartProductRepository.findByCartId(cart.getCartId());
+            BigDecimal totalPrice = BigDecimal.ZERO;
+            for (CartProduct cartProduct : cartProducts) {
+                BigDecimal itemTotal = cartProduct.getPriceAtTime()
+                        .multiply(BigDecimal.valueOf(cartProduct.getQuantity()));
+                totalPrice = totalPrice.add(itemTotal);
+            }
+
+            // Update cart total
+            cart.setTotalPrice(totalPrice);
+            cart = cartRepository.save(cart);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("cart_id", cart.getCartId());
+            response.put("email", cart.getEmail());
+            response.put("total_price", cart.getTotalPrice());
+            response.put("item_count", cartProducts.size());
+            response.put("synced", true);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/calculate-total")
+    public ResponseEntity<?> calculateCartTotal(@PathVariable Long id) {
+        try {
+            Optional<Cart> cartOpt = cartRepository.findById(id);
+            if (!cartOpt.isPresent()) {
+                return ResponseEntity.status(404).body(Map.of("error", "Cart not found"));
+            }
+
+            Cart cart = cartOpt.get();
+            List<CartProduct> cartProducts = cartProductRepository.findByCartId(id);
+
+            BigDecimal totalPrice = BigDecimal.ZERO;
+            for (CartProduct cartProduct : cartProducts) {
+                BigDecimal itemTotal = cartProduct.getPriceAtTime()
+                        .multiply(BigDecimal.valueOf(cartProduct.getQuantity()));
+                totalPrice = totalPrice.add(itemTotal);
+            }
+
+            cart.setTotalPrice(totalPrice);
+            cart = cartRepository.save(cart);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("cart_id", cart.getCartId());
+            response.put("total_price", cart.getTotalPrice());
+            response.put("item_count", cartProducts.size());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

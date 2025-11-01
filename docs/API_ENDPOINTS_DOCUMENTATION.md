@@ -602,6 +602,48 @@ http://localhost:8080/api
 
 ---
 
+### 32a. Sync Cart ⭐ **NEW**
+- **Endpoint**: `POST /api/carts/sync`
+- **Description**: Synchronizes a user's cart with the backend. Creates cart if doesn't exist, calculates total from cart items.
+- **Request Body**:
+  ```json
+  {
+    "email": "user@example.com" (required)
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "cart_id": 123,
+    "email": "user@example.com",
+    "total_price": 299.97,
+    "item_count": 3,
+    "synced": true
+  }
+  ```
+- **Error Response**: `400 Bad Request` with error message
+
+---
+
+### 32b. Calculate Cart Total ⭐ **NEW**
+- **Endpoint**: `PUT /api/carts/{id}/calculate-total`
+- **Description**: Recalculates and updates cart total price based on all cart products.
+- **Path Parameters**:
+  - `id`: Long (required)
+- **Response**:
+  ```json
+  {
+    "cart_id": 123,
+    "total_price": 299.97,
+    "item_count": 3
+  }
+  ```
+- **Error Response**: 
+  - `404 Not Found`: "Cart not found"
+  - `400 Bad Request`: Error message
+
+---
+
 ## Cart Product Management (`/api/cart-products`)
 
 ### 33. Get All Cart Products
@@ -1002,6 +1044,285 @@ http://localhost:8080/api
 
 ---
 
+## Admin Coupons Management (`/api/admin/coupons`) ⭐ **NEW**
+
+### 49. Get All Coupons
+- **Endpoint**: `GET /api/admin/coupons`
+- **Description**: Retrieves all coupons (active and inactive).
+- **Parameters**: None
+- **Response**: Array of Coupon objects
+  ```json
+  [
+    {
+      "couponId": 1,
+      "couponCode": "SAVE20",
+      "description": "20% off on all items",
+      "discountType": "PERCENTAGE",
+      "discountValue": 20.00,
+      "minPurchaseAmount": 50.00,
+      "maxDiscountAmount": 100.00,
+      "usageLimit": 100,
+      "usedCount": 45,
+      "validFrom": "2024-01-01T00:00:00",
+      "validUntil": "2024-12-31T23:59:59",
+      "isActive": true,
+      "createdAt": "2024-01-01T00:00:00",
+      "updatedAt": "2024-01-01T00:00:00"
+    }
+  ]
+  ```
+
+---
+
+### 50. Get Active Coupons
+- **Endpoint**: `GET /api/admin/coupons/active`
+- **Description**: Retrieves only active coupons.
+- **Parameters**: None
+- **Response**: Array of active Coupon objects
+
+---
+
+### 51. Get Coupon by ID
+- **Endpoint**: `GET /api/admin/coupons/{id}`
+- **Description**: Retrieves a specific coupon by ID.
+- **Path Parameters**:
+  - `id`: Long (required)
+- **Response**: Coupon object
+- **Error Response**: 
+  ```json
+  {
+    "message": "Coupon not found"
+  }
+  ```
+  Status: `404 Not Found`
+
+---
+
+### 52. Get Coupon by Code
+- **Endpoint**: `GET /api/admin/coupons/code/{code}`
+- **Description**: Retrieves a coupon by its code (case-insensitive).
+- **Path Parameters**:
+  - `code`: String (required)
+- **Response**: Coupon object
+- **Error Response**: 
+  ```json
+  {
+    "message": "Coupon not found"
+  }
+  ```
+  Status: `404 Not Found`
+
+---
+
+### 53. Create Coupon
+- **Endpoint**: `POST /api/admin/coupons`
+- **Description**: Creates a new coupon. Automatically converts coupon code to uppercase.
+- **Request Body**:
+  ```json
+  {
+    "couponCode": "SAVE20" (required, unique),
+    "description": "20% off on all items" (optional),
+    "discountType": "PERCENTAGE" (required, must be "PERCENTAGE" or "FIXED"),
+    "discountValue": 20.00 (required, must be >= 0),
+    "minPurchaseAmount": 50.00 (optional, must be >= 0),
+    "maxDiscountAmount": 100.00 (optional, for percentage discounts),
+    "usageLimit": 100 (optional),
+    "validFrom": "2024-01-01T00:00:00" (required),
+    "validUntil": "2024-12-31T23:59:59" (required),
+    "isActive": true (optional, default: true)
+  }
+  ```
+- **Response**: Created Coupon object (Status: `201 Created`)
+- **Error Responses**:
+  - `400 Bad Request`: "Coupon code is required"
+  - `400 Bad Request`: "Coupon code already exists"
+  - `400 Bad Request`: "Discount type must be 'PERCENTAGE' or 'FIXED'"
+  - `400 Bad Request`: "Valid until date must be after valid from date"
+
+---
+
+### 54. Update Coupon
+- **Endpoint**: `PUT /api/admin/coupons/{id}`
+- **Description**: Updates an existing coupon. Only provided fields will be updated.
+- **Path Parameters**:
+  - `id`: Long (required)
+- **Request Body**: Coupon object with fields to update (all optional)
+- **Response**: Updated Coupon object
+- **Error Responses**:
+  - `404 Not Found`: "Coupon not found"
+  - `400 Bad Request`: "Coupon code already exists"
+  - `400 Bad Request`: "Discount type must be 'PERCENTAGE' or 'FIXED'"
+
+---
+
+### 55. Delete Coupon
+- **Endpoint**: `DELETE /api/admin/coupons/{id}`
+- **Description**: Deletes a coupon.
+- **Path Parameters**:
+  - `id`: Long (required)
+- **Response**:
+  ```json
+  {
+    "message": "Coupon deleted successfully"
+  }
+  ```
+- **Error Response**: `404 Not Found`: "Coupon not found"
+
+---
+
+### 56. Validate Coupon ⭐ **IMPORTANT**
+- **Endpoint**: `POST /api/admin/coupons/validate/{code}`
+- **Description**: Validates a coupon code and calculates discount. Returns discount amount and final price.
+- **Path Parameters**:
+  - `code`: String (required)
+- **Request Body**:
+  ```json
+  {
+    "cart_total": 150.00 (required)
+  }
+  ```
+- **Response (Valid Coupon)**:
+  ```json
+  {
+    "valid": true,
+    "coupon_code": "SAVE20",
+    "discount": 30.00,
+    "discount_type": "PERCENTAGE",
+    "original_amount": 150.00,
+    "final_amount": 120.00
+  }
+  ```
+- **Response (Invalid Coupon)**:
+  ```json
+  {
+    "valid": false,
+    "error": "Coupon has expired"
+  }
+  ```
+- **Validation Checks**: Coupon exists, is active, within valid dates, usage limit not exceeded, minimum purchase met
+
+---
+
+## Admin Activity Logging (`/api/admin/activities`) ⭐ **NEW**
+
+### 57. Get All Activities
+- **Endpoint**: `GET /api/admin/activities`
+- **Description**: Retrieves all admin activities with pagination.
+- **Query Parameters**:
+  - `page`: integer (optional, default: 0)
+  - `size`: integer (optional, default: 20)
+- **Response**: Paginated AdminActivity objects
+  ```json
+  {
+    "content": [
+      {
+        "activityId": 1,
+        "adminEmail": "admin@example.com",
+        "actionType": "CREATE",
+        "entityType": "PRODUCT",
+        "entityId": 123,
+        "description": "Created new product",
+        "ipAddress": "192.168.1.1",
+        "userAgent": "Mozilla/5.0...",
+        "createdAt": "2024-01-15T10:30:00"
+      }
+    ],
+    "totalElements": 150,
+    "totalPages": 8
+  }
+  ```
+
+---
+
+### 58. Get Activity by ID
+- **Endpoint**: `GET /api/admin/activities/{id}`
+- **Description**: Retrieves a specific activity by ID.
+- **Path Parameters**:
+  - `id`: Long (required)
+- **Response**: AdminActivity object
+- **Error Response**: `404 Not Found`: "Activity not found"
+
+---
+
+### 59. Get Activities by Admin Email
+- **Endpoint**: `GET /api/admin/activities/admin/{email}`
+- **Description**: Retrieves all activities for a specific admin with pagination.
+- **Path Parameters**:
+  - `email`: String (required)
+- **Query Parameters**:
+  - `page`: integer (optional, default: 0)
+  - `size`: integer (optional, default: 20)
+- **Response**: Paginated AdminActivity objects
+
+---
+
+### 60. Get Activities by Entity Type
+- **Endpoint**: `GET /api/admin/activities/entity/{entityType}`
+- **Description**: Retrieves all activities for a specific entity type.
+- **Path Parameters**:
+  - `entityType`: String (required) - Examples: PRODUCT, ORDER, COUPON, USER
+- **Response**: Array of AdminActivity objects
+
+---
+
+### 61. Get Activities by Action Type
+- **Endpoint**: `GET /api/admin/activities/action/{actionType}`
+- **Description**: Retrieves all activities for a specific action type.
+- **Path Parameters**:
+  - `actionType`: String (required) - Examples: CREATE, UPDATE, DELETE, VIEW
+- **Response**: Array of AdminActivity objects
+
+---
+
+### 62. Log Activity (Full Object)
+- **Endpoint**: `POST /api/admin/activities`
+- **Description**: Logs an admin activity. Automatically captures IP address and User-Agent.
+- **Request Body**:
+  ```json
+  {
+    "adminEmail": "admin@example.com" (required),
+    "actionType": "CREATE" (required),
+    "entityType": "PRODUCT" (required),
+    "entityId": 123 (optional),
+    "description": "Created new product" (optional)
+  }
+  ```
+- **Response**: Created AdminActivity object (Status: `201 Created`)
+
+---
+
+### 63. Quick Log Activity ⭐ **RECOMMENDED**
+- **Endpoint**: `POST /api/admin/activities/quick-log`
+- **Description**: Simplified activity logging endpoint.
+- **Request Body**:
+  ```json
+  {
+    "admin_email": "admin@example.com" (required),
+    "action_type": "UPDATE" (required),
+    "entity_type": "ORDER" (required),
+    "entity_id": 456 (optional),
+    "description": "Updated order status" (optional)
+  }
+  ```
+- **Response**: Created AdminActivity object (Status: `201 Created`)
+
+---
+
+### 64. Delete Activity
+- **Endpoint**: `DELETE /api/admin/activities/{id}`
+- **Description**: Deletes an activity log entry.
+- **Path Parameters**:
+  - `id`: Long (required)
+- **Response**:
+  ```json
+  {
+    "message": "Activity deleted successfully"
+  }
+  ```
+- **Error Response**: `404 Not Found`: "Activity not found"
+
+---
+
 ## Important Notes
 
 ### Authentication
@@ -1031,6 +1352,9 @@ http://localhost:8080/api
 - ✅ **Get Orders by Email**: View user's order history
 - ✅ **Get Cart Products by Cart ID**: Display all items in a cart
 - ✅ **Image Management**: Full CRUD operations for product/variant images
+- ✅ **Cart Sync**: Synchronize cart with backend and auto-calculate totals
+- ✅ **Admin Coupons**: Complete coupon management with validation
+- ✅ **Admin Activity Logging**: Full audit trail for admin actions
 
 ---
 
@@ -1048,7 +1372,7 @@ http://localhost:8080/swagger-ui/index.html
 
 ## Summary
 
-**Total Endpoints**: 48 (previously 42)
+**Total Endpoints**: 64 (previously 42)
 
 ### Endpoint Breakdown:
 - Authentication: 3 endpoints
@@ -1057,15 +1381,20 @@ http://localhost:8080/swagger-ui/index.html
 - Category Management: 5 endpoints
 - Product Management: 5 endpoints
 - Product Variant Management: 4 endpoints
-- Cart Management: 6 endpoints (includes new Get Cart by Email)
-- Cart Product Management: 6 endpoints (includes new Get Cart Products by Cart ID)
-- Order Management: 7 endpoints (includes new Get Orders by Email and Create Order from Cart)
-- Image Management: 6 endpoints (NEW - full CRUD)
+- Cart Management: 8 endpoints (includes sync and calculate-total)
+- Cart Product Management: 6 endpoints
+- Order Management: 7 endpoints (includes Get Orders by Email and Create Order from Cart)
+- Image Management: 6 endpoints
+- **Admin Coupons Management: 8 endpoints** ⭐ **NEW**
+- **Admin Activity Logging: 8 endpoints** ⭐ **NEW**
 
 ### Key Features:
 - ✅ Complete checkout flow (Cart → Order)
 - ✅ Automatic stock management
 - ✅ User cart and order history access
 - ✅ Full image management for products
+- ✅ **Cart synchronization with backend**
+- ✅ **Coupon management with validation and discount calculation**
+- ✅ **Complete admin activity audit trail**
 - ✅ All endpoints include error handling and validation
 
