@@ -1,5 +1,6 @@
 package com.victusstore.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -34,10 +35,12 @@ public class Image {
 
     @ManyToOne
     @JoinColumn(name = "product_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Product product;
 
     @ManyToOne
     @JoinColumn(name = "variant_id", insertable = false, updatable = false)
+    @JsonIgnore
     private ProductVariant variant;
 
     @PrePersist

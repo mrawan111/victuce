@@ -1,7 +1,9 @@
 package com.victusstore.controller;
 
+import com.victusstore.model.Account;
 import com.victusstore.model.Cart;
 import com.victusstore.model.CartProduct;
+import com.victusstore.repository.AccountRepository;
 import com.victusstore.repository.CartRepository;
 import com.victusstore.repository.CartProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,9 @@ public class CartController {
     @Autowired
     private CartProductRepository cartProductRepository;
 
+    @Autowired
+    private AccountRepository accountRepository;
+
     @GetMapping
     public ResponseEntity<List<Cart>> getAllCarts() {
         List<Cart> carts = cartRepository.findAll();
@@ -46,9 +51,19 @@ public class CartController {
     }
 
     @PostMapping
-    public ResponseEntity<Cart> createCart(@RequestBody Cart cart) {
-        Cart savedCart = cartRepository.save(cart);
-        return ResponseEntity.ok(savedCart);
+    public ResponseEntity<?> createCart(@RequestBody Cart cart) {
+        try {
+            // Validate that the account exists
+            Optional<Account> accountOpt = accountRepository.findByEmail(cart.getEmail());
+            if (accountOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Account with email " + cart.getEmail() + " does not exist"));
+            }
+
+            Cart savedCart = cartRepository.save(cart);
+            return ResponseEntity.ok(savedCart);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}")
@@ -81,6 +96,12 @@ public class CartController {
             String email = (String) data.get("email");
             if (email == null || email.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+            }
+
+            // Validate that the account exists
+            Optional<Account> accountOpt = accountRepository.findByEmail(email);
+            if (accountOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Account with email " + email + " does not exist"));
             }
 
             // Get or create cart for user

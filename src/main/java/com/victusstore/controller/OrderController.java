@@ -38,6 +38,12 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/with-products")
+    public ResponseEntity<List<Order>> getAllOrdersWithProducts() {
+        List<Order> orders = orderRepository.findAllOrdersWithItems();
+        return ResponseEntity.ok(orders);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
         return orderRepository.findById(id)

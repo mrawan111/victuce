@@ -1,5 +1,6 @@
 package com.victusstore.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -36,9 +37,11 @@ public class Cart {
 
     @ManyToOne
     @JoinColumn(name = "email", referencedColumnName = "email", insertable = false, updatable = false)
+    @JsonIgnore
     private Account account;
 
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<CartProduct> cartProducts;
 
     @PrePersist

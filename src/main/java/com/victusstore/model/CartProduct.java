@@ -1,5 +1,6 @@
 package com.victusstore.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -41,10 +42,12 @@ public class CartProduct {
 
     @ManyToOne
     @JoinColumn(name = "cart_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Cart cart;
 
     @ManyToOne
     @JoinColumn(name = "order_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Order order;
 
     @PrePersist
