@@ -8,7 +8,6 @@ import com.victusstore.repository.ProductVariantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +38,16 @@ public class CartProductController {
             return ResponseEntity.ok(cartProduct.get());
         } else {
             return ResponseEntity.status(404).body(Map.of("message", "Cart product not found"));
+        }
+    }
+
+    @GetMapping("/cart/{cartId}")
+    public ResponseEntity<?> getCartProductsByCartId(@PathVariable Long cartId) {
+        try {
+            List<CartProduct> cartProducts = cartProductRepository.findByCartId(cartId);
+            return ResponseEntity.ok(cartProducts);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

@@ -30,6 +30,13 @@ public class CartController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/user/{email}")
+    public ResponseEntity<Cart> getCartByEmail(@PathVariable String email) {
+        return cartRepository.findByAccount_Email(email)
+                .map(cart -> ResponseEntity.ok(cart))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     public ResponseEntity<Cart> createCart(@RequestBody Cart cart) {
         Cart savedCart = cartRepository.save(cart);
