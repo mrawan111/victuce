@@ -1,0 +1,4 @@
+- [x] Update OrderRepository.java to add custom queries for eager fetching of orderItems
+- [x] Update OrderController.java to use the new eager fetching methods
+- [x] Add validation to prevent orders without items
+- [ ] Test the endpoints to verify orderItems are consistently populated and validation works

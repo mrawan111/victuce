@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -34,7 +35,7 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<List<Order>> getAllOrders() {
-        List<Order> orders = orderRepository.findAll();
+        List<Order> orders = orderRepository.findAllOrdersWithItems();
         return ResponseEntity.ok(orders);
     }
 
@@ -46,20 +47,36 @@ public class OrderController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-        return orderRepository.findById(id)
-                .map(order -> ResponseEntity.ok(order))
-                .orElse(ResponseEntity.notFound().build());
+        Order order = orderRepository.findByIdWithItems(id);
+        if (order != null) {
+            return ResponseEntity.ok(order);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/user/{email}")
     public ResponseEntity<List<Order>> getOrdersByEmail(@PathVariable String email) {
-        List<Order> orders = orderRepository.findByAccount_Email(email);
+        List<Order> orders = orderRepository.findOrdersByEmailWithItems(email);
         return ResponseEntity.ok(orders);
     }
 
     @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody Order order) {
+    public ResponseEntity<?> createOrder(@RequestBody Order order) {
+        // Validation: Orders must have items
+        if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Orders must have at least one item. Use /api/orders/from-cart/{cartId} to create orders from cart."));
+        }
+
+        // Save the order first to get the orderId
         Order savedOrder = orderRepository.save(order);
+
+        // Link cart products to the order
+        for (CartProduct cartProduct : order.getOrderItems()) {
+            cartProduct.setOrderId(savedOrder.getOrderId());
+            cartProductRepository.save(cartProduct);
+        }
+
         return ResponseEntity.ok(savedOrder);
     }
 
@@ -145,6 +162,25 @@ public class OrderController {
             response.put("total_price", savedOrder.getTotalPrice());
             response.put("order_status", savedOrder.getOrderStatus());
 
+            // Include order items with product details for verification
+            List<Map<String, Object>> orderItemsDetails = new ArrayList<>();
+            for (CartProduct cartProduct : cartProducts) {
+                ProductVariant variant = variantRepository.findById(cartProduct.getVariantId()).orElse(null);
+                Map<String, Object> itemDetail = new HashMap<>();
+                itemDetail.put("variant_id", cartProduct.getVariantId());
+                itemDetail.put("quantity", cartProduct.getQuantity());
+                itemDetail.put("price_at_time", cartProduct.getPriceAtTime());
+                if (variant != null && variant.getProduct() != null) {
+                    itemDetail.put("product_name", variant.getProduct().getProductName());
+                    itemDetail.put("variant_details", variant.getColor() + " - " + variant.getSize());
+                } else {
+                    itemDetail.put("product_name", "Unknown");
+                    itemDetail.put("variant_details", "Unknown");
+                }
+                orderItemsDetails.add(itemDetail);
+            }
+            response.put("order_items", orderItemsDetails);
+
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
@@ -156,15 +192,16 @@ public class OrderController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Order> updateOrder(@PathVariable Long id, @RequestBody Order orderDetails) {
-        return orderRepository.findById(id)
-                .map(order -> {
-                    if (orderDetails.getTotalPrice() != null) order.setTotalPrice(orderDetails.getTotalPrice());
-                    if (orderDetails.getOrderStatus() != null) order.setOrderStatus(orderDetails.getOrderStatus());
-                    if (orderDetails.getAddress() != null) order.setAddress(orderDetails.getAddress());
-                    Order updatedOrder = orderRepository.save(order);
-                    return ResponseEntity.ok(updatedOrder);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        Order order = orderRepository.findByIdWithItems(id);
+        if (order != null) {
+            if (orderDetails.getTotalPrice() != null) order.setTotalPrice(orderDetails.getTotalPrice());
+            if (orderDetails.getOrderStatus() != null) order.setOrderStatus(orderDetails.getOrderStatus());
+            if (orderDetails.getAddress() != null) order.setAddress(orderDetails.getAddress());
+            Order updatedOrder = orderRepository.save(order);
+            return ResponseEntity.ok(updatedOrder);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
