@@ -8,5 +8,11 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jdk
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
+
+# Set database environment variables
+ENV SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mydb
+ENV SPRING_DATASOURCE_USERNAME=admin
+ENV SPRING_DATASOURCE_PASSWORD=Amenhitham2@
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
