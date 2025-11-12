@@ -10,7 +10,7 @@ WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 
 # Set database environment variables
-ENV SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mydb
+ENV SPRING_DATASOURCE_URL=jdbc:postgresql://196.221.167.63:5432/mydb
 ENV SPRING_DATASOURCE_USERNAME=admin
 ENV SPRING_DATASOURCE_PASSWORD=Amenhitham2@
 
