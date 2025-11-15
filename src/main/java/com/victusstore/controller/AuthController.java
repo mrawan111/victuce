@@ -33,7 +33,18 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, Object> request) {
         try {
+            // Validate required fields
             String email = (String) request.get("email");
+            String password = (String) request.get("password");
+
+            if (email == null || email.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+            }
+            if (password == null || password.length() < 8) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 8 characters long"));
+            }
+
+            email = email.trim().toLowerCase();
 
             if (accountRepository.findByEmail(email).isPresent()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email already exists"));
@@ -41,10 +52,26 @@ public class AuthController {
 
             Account account = new Account();
             account.setEmail(email);
-            account.setPassword(passwordEncoder.encode((String) request.get("password")));
+            account.setPassword(passwordEncoder.encode(password));
             account.setFirstName((String) request.get("first_name"));
             account.setLastName((String) request.get("last_name"));
-            account.setPhoneNum((String) request.get("phone_num"));
+
+            // Clean phone number - extract only digits and ensure exactly 10 digits
+            String phoneNum = (String) request.get("phone_num");
+            if (phoneNum != null && !phoneNum.trim().isEmpty()) {
+                // Remove all non-digit characters
+                String cleanPhone = phoneNum.replaceAll("[^0-9]", "");
+                // If more than 10 digits, take the last 10 (local number)
+                if (cleanPhone.length() > 10) {
+                    cleanPhone = cleanPhone.substring(cleanPhone.length() - 10);
+                }
+                // If less than 10 digits, pad with zeros or reject
+                if (cleanPhone.length() < 10) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Phone number must contain at least 10 digits"));
+                }
+                account.setPhoneNum(cleanPhone);
+            }
+
             account.setSellerAccount((Boolean) request.getOrDefault("seller_account", false));
             account.setCreatedAt(LocalDateTime.now());
             account.setIsActive(true);
@@ -55,7 +82,12 @@ public class AuthController {
             if (account.getSellerAccount()) {
                 Seller seller = new Seller();
                 seller.setEmail(email);
-                seller.setSellerName(account.getFirstName() + " " + account.getLastName());
+                String firstName = account.getFirstName() != null ? account.getFirstName() : "";
+                String lastName = account.getLastName() != null ? account.getLastName() : "";
+                seller.setSellerName((firstName + " " + lastName).trim());
+                if (seller.getSellerName().isEmpty()) {
+                    seller.setSellerName("Seller");
+                }
                 Seller savedSeller = sellerRepository.save(seller);
                 sellerId = savedSeller.getSellerId();
             }
@@ -70,28 +102,56 @@ public class AuthController {
                 response.put("seller_id", sellerId);
             }
 
+            System.out.println("Registration successful for email: " + email);
             return ResponseEntity.ok(response);
+
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            System.err.println("Registration error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
         try {
-            String email = credentials.get("email");
-            String password = credentials.get("password");
-
-            Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
-
-            if (!passwordEncoder.matches(password, account.getPassword())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Invalid credentials"));
+            // Validate request body
+            if (credentials == null || !credentials.containsKey("email") || !credentials.containsKey("password")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email and password are required"));
             }
 
+            String email = credentials.get("email").trim();
+            String password = credentials.get("password");
+
+            // Validate email format
+            if (email.isEmpty() || !email.contains("@")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid email format"));
+            }
+
+            // Check if account exists
+            Account account = accountRepository.findByEmail(email).orElse(null);
+            if (account == null) {
+                System.out.println("Login attempt failed: Account not found for email: " + email);
+                return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+            }
+
+            // Check if account is active
+            if (!account.getIsActive()) {
+                System.out.println("Login attempt failed: Account inactive for email: " + email);
+                return ResponseEntity.status(401).body(Map.of("error", "Account is deactivated"));
+            }
+
+            // Verify password
+            if (!passwordEncoder.matches(password, account.getPassword())) {
+                System.out.println("Login attempt failed: Invalid password for email: " + email);
+                return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+            }
+
+            // Update last login
             account.setLastLogin(LocalDateTime.now());
             accountRepository.save(account);
 
+            // Generate token
             String token = jwtUtil.generateToken(account.getEmail(), account.getSellerAccount());
 
             Map<String, Object> response = new HashMap<>();
@@ -100,9 +160,13 @@ public class AuthController {
             response.put("email", account.getEmail());
             response.put("seller_account", account.getSellerAccount());
 
+            System.out.println("Login successful for email: " + email);
             return ResponseEntity.ok(response);
+
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            System.err.println("Login error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
 

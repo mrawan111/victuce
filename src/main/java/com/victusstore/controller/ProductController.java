@@ -67,4 +67,14 @@ public class ProductController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @GetMapping("/category/{categoryId}")
+    public ResponseEntity<Page<Product>> getProductsByCategory(
+            @PathVariable Long categoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> products = productRepository.findByCategoryId(categoryId, pageable);
+        return ResponseEntity.ok(products);
+    }
 }
