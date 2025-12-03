@@ -95,36 +95,55 @@ public class OrderController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Cart is empty"));
             }
 
-            // Validate stock availability and calculate total
-            BigDecimal totalPrice = BigDecimal.ZERO;
-            for (CartProduct cartProduct : cartProducts) {
-                ProductVariant variant = variantRepository.findById(cartProduct.getVariantId())
-                        .orElseThrow(() -> new RuntimeException("Product variant not found for cart item"));
-                
-                if (variant.getStockQuantity() < cartProduct.getQuantity()) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                            "error", "Insufficient stock for variant: " + variant.getVariantId(),
-                            "variant_id", variant.getVariantId(),
-                            "available_stock", variant.getStockQuantity(),
-                            "requested_quantity", cartProduct.getQuantity()
-                    ));
-                }
-                
-                // Calculate total (quantity * price_at_time)
-                BigDecimal itemTotal = cartProduct.getPriceAtTime()
-                        .multiply(BigDecimal.valueOf(cartProduct.getQuantity()));
-                totalPrice = totalPrice.add(itemTotal);
-            }
-
             // Get account for phone number if not provided
             Account account = accountRepository.findByEmail(cart.getEmail())
                     .orElseThrow(() -> new RuntimeException("Account not found"));
+
+            // Adjust quantities based on available stock and remove items with 0 quantity
+            List<CartProduct> adjustedCartProducts = new ArrayList<>();
+            BigDecimal totalPrice = BigDecimal.ZERO;
+
+            for (CartProduct cartProduct : cartProducts) {
+                ProductVariant variant = variantRepository.findById(cartProduct.getVariantId())
+                        .orElseThrow(() -> new RuntimeException("Product variant not found for cart item"));
+
+                int availableStock = variant.getStockQuantity();
+                int requestedQuantity = cartProduct.getQuantity();
+
+                if (availableStock <= 0) {
+                    // Skip this item as it's out of stock
+                    continue;
+                }
+
+                int adjustedQuantity = Math.min(requestedQuantity, availableStock);
+
+                // Update cart product quantity if adjusted
+                if (adjustedQuantity != requestedQuantity) {
+                    cartProduct.setQuantity(adjustedQuantity);
+                    cartProductRepository.save(cartProduct);
+                }
+
+                // Calculate total (quantity * price_at_time)
+                BigDecimal itemTotal = cartProduct.getPriceAtTime()
+                        .multiply(BigDecimal.valueOf(adjustedQuantity));
+                totalPrice = totalPrice.add(itemTotal);
+
+                adjustedCartProducts.add(cartProduct);
+            }
+
+            // Check if we have any items left after stock adjustment
+            if (adjustedCartProducts.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "All items in cart are out of stock"));
+            }
 
             // Create order
             Order order = new Order();
             order.setEmail(cart.getEmail());
             order.setAddress((String) orderData.getOrDefault("address", ""));
-            order.setPhoneNum((String) orderData.getOrDefault("phone_num", account.getPhoneNum()));
+            // Handle null phone number from account
+            String phoneNum = (String) orderData.getOrDefault("phone_num",
+                    account.getPhoneNum() != null ? account.getPhoneNum() : "");
+            order.setPhoneNum(phoneNum);
             order.setTotalPrice(totalPrice);
             order.setOrderStatus((String) orderData.getOrDefault("order_status", "pending"));
             order.setPaymentStatus((String) orderData.getOrDefault("payment_status", "pending"));

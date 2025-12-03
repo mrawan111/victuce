@@ -9,6 +9,8 @@ import com.victusstore.repository.ProductVariantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -18,6 +20,8 @@ import java.util.Optional;
 @RequestMapping("/api/cart-products")
 @CrossOrigin(origins = "*")
 public class CartProductController {
+
+    private static final Logger logger = LoggerFactory.getLogger(CartProductController.class);
 
     @Autowired
     private CartProductRepository cartProductRepository;
@@ -65,6 +69,7 @@ public class CartProductController {
     @PostMapping
     public ResponseEntity<?> createCartProduct(@RequestBody Map<String, Object> data) {
         try {
+            logger.info("POST /api/cart-products called with payload: {}", data);
             // Validate required fields
             if (!data.containsKey("variant_id") || !data.containsKey("cart_id") || !data.containsKey("quantity")) {
                 return ResponseEntity.badRequest().body(Map.of(
@@ -104,6 +109,7 @@ public class CartProductController {
                 ));
             }
 
+
             // ⭐ ENHANCEMENT: Get product details for response
             Product product = variant.getProduct();
             if (product != null && product.getIsActive() != null && !product.getIsActive()) {
@@ -127,6 +133,14 @@ public class CartProductController {
                 ));
             }
 
+            // Calculate priceAtTime as base price + variant price
+            java.math.BigDecimal priceAtTime = java.math.BigDecimal.ZERO;
+            if (product != null && product.getBasePrice() != null && variant.getPrice() != null) {
+                priceAtTime = product.getBasePrice().add(variant.getPrice());
+            } else if (variant.getPrice() != null) {
+                priceAtTime = variant.getPrice();
+            }
+
             // Check if variant already exists in cart
             Optional<CartProduct> existingOpt = cartProductRepository.findByCartIdAndVariantId(cartId, variantId);
 
@@ -138,7 +152,6 @@ public class CartProductController {
                 // Update existing cart item
                 CartProduct existing = existingOpt.get();
                 Integer totalQuantity = existing.getQuantity() + quantity;
-                
                 // Validate total quantity against stock
                 if (totalQuantity > variant.getStockQuantity()) {
                     return ResponseEntity.badRequest().body(Map.of(
@@ -149,8 +162,9 @@ public class CartProductController {
                         "available_stock", variant.getStockQuantity()
                     ));
                 }
-                
                 existing.setQuantity(totalQuantity);
+                // Update priceAtTime if needed
+                existing.setPriceAtTime(priceAtTime);
                 cartProductRepository.save(existing);
                 cartProductId = existing.getId();
                 newQuantity = totalQuantity;
@@ -161,7 +175,7 @@ public class CartProductController {
                 cartProduct.setCartId(cartId);
                 cartProduct.setVariantId(variantId);
                 cartProduct.setQuantity(quantity);
-                cartProduct.setPriceAtTime(variant.getPrice());
+                cartProduct.setPriceAtTime(priceAtTime);
                 CartProduct saved = cartProductRepository.save(cartProduct);
                 cartProductId = saved.getId();
                 newQuantity = quantity;
@@ -175,30 +189,34 @@ public class CartProductController {
             response.put("cart_product_id", cartProductId);
             response.put("is_new_item", isNewItem);
             response.put("quantity", newQuantity);
-            
+
             // Include product details for frontend confirmation
             Map<String, Object> productInfo = new HashMap<>();
             if (product != null) {
                 productInfo.put("product_id", product.getProductId());
                 productInfo.put("product_name", product.getProductName());
                 productInfo.put("description", product.getDescription());
+                productInfo.put("base_price", product.getBasePrice());
             }
             productInfo.put("variant_id", variant.getVariantId());
             productInfo.put("color", variant.getColor());
             productInfo.put("size", variant.getSize());
             productInfo.put("price", variant.getPrice());
             productInfo.put("sku", variant.getSku());
-            
+            productInfo.put("price_at_time", priceAtTime);
+
             response.put("product_details", productInfo);
 
             return ResponseEntity.status(201).body(response);
 
         } catch (NumberFormatException e) {
+            logger.warn("NumberFormatException while adding to cart: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Invalid number format",
                 "details", e.getMessage()
             ));
         } catch (Exception e) {
+            logger.error("Exception while adding to cart", e);
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Failed to add product to cart",
                 "details", e.getMessage()

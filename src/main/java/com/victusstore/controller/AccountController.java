@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,7 @@ public class AccountController {
     private AccountRepository accountRepository;
 
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private static final Logger logger = LoggerFactory.getLogger(AccountController.class);
 
     @GetMapping
     public ResponseEntity<List<Account>> getAllAccounts() {
@@ -41,20 +44,27 @@ public class AccountController {
     }
 
     @PutMapping("/{email}")
-    public ResponseEntity<Account> updateAccount(@PathVariable String email, @RequestBody Account accountDetails) {
-        return accountRepository.findByEmail(email)
-            .map(account -> {
-                account.setFirstName(accountDetails.getFirstName());
-                account.setLastName(accountDetails.getLastName());
-                account.setEmail(accountDetails.getEmail());
-                account.setPhoneNum(accountDetails.getPhoneNum());
-                account.setPassword(passwordEncoder.encode(accountDetails.getPassword()));
-                account.setIsActive(accountDetails.getIsActive());
-                account.setSellerAccount(accountDetails.getSellerAccount());
-                Account updatedAccount = accountRepository.save(account);
-                return ResponseEntity.ok(updatedAccount);
-            })
-            .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> updateAccount(@PathVariable String email, @RequestBody Account accountDetails) {
+        try {
+            return accountRepository.findByEmail(email)
+                .map(account -> {
+                    account.setFirstName(accountDetails.getFirstName());
+                    account.setLastName(accountDetails.getLastName());
+                    account.setPhoneNum(accountDetails.getPhoneNum());
+                    // Only update password when a non-null, non-empty password is provided
+                    if (accountDetails.getPassword() != null && !accountDetails.getPassword().isBlank()) {
+                        account.setPassword(passwordEncoder.encode(accountDetails.getPassword()));
+                    }
+                    account.setIsActive(accountDetails.getIsActive());
+                    account.setSellerAccount(accountDetails.getSellerAccount());
+                    Account updatedAccount = accountRepository.save(account);
+                    return ResponseEntity.ok(updatedAccount);
+                })
+                .orElse(ResponseEntity.status(404).body(Map.of("error", "Account not found")));
+        } catch (Exception e) {
+            logger.error("Failed to update account {}: {}", email, e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to update account", "details", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{email}")
