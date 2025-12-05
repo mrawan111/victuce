@@ -30,10 +30,10 @@ public class AccountController {
     }
 
     @GetMapping("/{email}")
-    public ResponseEntity<Account> getAccountByEmail(@PathVariable String email) {
+    public ResponseEntity<?> getAccountByEmail(@PathVariable String email) {
         return accountRepository.findByEmail(email)
-            .map(account -> ResponseEntity.ok(account))
-            .orElse(ResponseEntity.notFound().build());
+            .<ResponseEntity<?>>map(account -> ResponseEntity.ok(account))
+            .orElse(ResponseEntity.status(404).body(Map.of("error", "Account not found")));
     }
 
     @PostMapping

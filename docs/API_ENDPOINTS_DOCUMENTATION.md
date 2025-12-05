@@ -7,6 +7,20 @@ http://localhost:8080/api
 
 ---
 
+## System Overview
+
+VictusStore is a lightweight, production-oriented e-commerce backend implemented with Spring Boot and JPA. It focuses on reliability, clear API semantics, and real-world checkout flows. Strong points:
+
+- **Complete checkout flow**: End-to-end cart → order pipeline with stock validation, price calculations, and optional cart clearing to support reliable checkout.
+- **Robust cart model**: Cart products store the `priceAtTime` to preserve historical pricing and allow accurate order totals even if product prices change later.
+- **Variant-aware pricing**: Product variants and base product pricing are combined at add-to-cart time so totals reflect both base price and variant adjustments.
+- **Defensive validation**: Controllers validate input (presence, quantities, and stock) and return clear error responses for common issues (missing fields, out-of-stock, not-found resources).
+- **Extensible image handling**: Image upload endpoints support single and multiple file uploads and store image metadata for products and variants.
+- **Admin and coupon features**: Built-in admin activity logging and coupon validation allow auditing and flexible discounting workflows.
+- **CORS-enabled, JWT-ready**: APIs are CORS-friendly for frontend integration and include authentication endpoints (JWT) ready to protect routes.
+- **Pragmatic API design**: Endpoints follow RESTful conventions, provide helpful response payloads, and include convenience endpoints (get cart by email, get orders by email).
+
+
 ## Authentication Endpoints (`/api/auth`)
 
 ### 1. Register User
@@ -157,7 +171,7 @@ http://localhost:8080/api
     "firstName": "string",
     "lastName": "string",
     "phoneNum": "string",
-    "password": "string (will be hashed)",
+    "password": "string (optional - will be hashed if provided)",
     "sellerAccount": true/false,
     "isActive": true/false
   }
@@ -512,6 +526,47 @@ http://localhost:8080/api
 - **Response**: Array of ProductVariant objects
 
 ---
+
+### 27a. Create Variant (NEW)
+- **Endpoint**: `POST /api/variants`
+- **Description**: Creates a new product variant for a given product. The request body should include `productId`, `color`, `size`, `stockQuantity`, `price`, and optionally `sku` and `isActive`.
+- **Request Body**:
+  ```json
+  {
+    "productId": 456,
+    "color": "Red",
+    "size": "M",
+    "stockQuantity": 100,
+    "price": 9.99,
+    "sku": "SKU-RED-M",
+    "isActive": true
+  }
+  ```
+- **Response**: Created `ProductVariant` object (Status: `201 Created`)
+- **Error Responses**: `400 Bad Request` with error message
+
+---
+
+### 27b. Update Variant (NEW)
+- **Endpoint**: `PUT /api/variants/{id}`
+- **Description**: Updates an existing variant's fields. Only the fields on the request body will be applied to the stored variant.
+- **Path Parameters**:
+  - `id`: Long (required)
+- **Request Body**: ProductVariant object with fields to update
+  ```json
+  {
+    "productId": 456,
+    "color": "Blue",
+    "size": "L",
+    "stockQuantity": 80,
+    "price": 11.99,
+    "sku": "SKU-BLU-L",
+    "isActive": true
+  }
+  ```
+- **Response**: Updated `ProductVariant` object
+- **Error Response**: `404 Not Found` if variant doesn't exist
+
 
 ## Cart Management (`/api/carts`)
 
@@ -979,6 +1034,23 @@ http://localhost:8080/api
 
 ---
 
+### 45a. Upload Single Image (NEW)
+- **Endpoint**: `POST /api/images/upload`
+- **Description**: Uploads a single image file (multipart/form-data). Returns an `imageUrl` and the created Image record. Useful when clients need to upload binary image files.
+- **Request**: `multipart/form-data` with a `file` field and optional `productId`, `variantId`, `isPrimary` fields.
+- **Response**: Created Image object with `imageUrl` (Status: `201 Created`)
+- **Error Responses**: `400 Bad Request` when file missing or invalid
+
+---
+
+### 45b. Upload Multiple Images (NEW)
+- **Endpoint**: `POST /api/images/upload-multiple`
+- **Description**: Upload multiple image files in a single request. Returns created Image records and URLs.
+- **Request**: `multipart/form-data` with multiple `files[]` fields and optional `productId`/`variantId`.
+- **Response**: Array of created Image objects (Status: `201 Created`)
+- **Error Responses**: `400 Bad Request` when files missing or invalid
+
+
 ### 46. Create Image
 - **Endpoint**: `POST /api/images`
 - **Description**: Creates/upload a new image for a product or variant.
@@ -1372,7 +1444,7 @@ http://localhost:8080/swagger-ui/index.html
 
 ## Summary
 
-**Total Endpoints**: 64 (previously 42)
+**Total Endpoints**: 67 (previously 42)
 
 ### Endpoint Breakdown:
 - Authentication: 3 endpoints
@@ -1380,11 +1452,11 @@ http://localhost:8080/swagger-ui/index.html
 - Seller Management: 5 endpoints
 - Category Management: 5 endpoints
 - Product Management: 5 endpoints
-- Product Variant Management: 4 endpoints
+- Product Variant Management: 6 endpoints
 - Cart Management: 8 endpoints (includes sync and calculate-total)
 - Cart Product Management: 6 endpoints
 - Order Management: 7 endpoints (includes Get Orders by Email and Create Order from Cart)
-- Image Management: 6 endpoints
+- Image Management: 8 endpoints
 - **Admin Coupons Management: 8 endpoints** ⭐ **NEW**
 - **Admin Activity Logging: 8 endpoints** ⭐ **NEW**
 
