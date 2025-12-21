@@ -139,10 +139,16 @@ Authorization: Bearer <token>
 
 All documentation is in the `docs/` folder:
 
-- **API_ENDPOINTS_DOCUMENTATION.md** - Complete API reference (all 64 endpoints)
+- **CONSISTENCY_REPORT_BACKEND.md** ⭐ **NEW** - Complete backend consistency audit and production readiness report
+- **ENDPOINT_MAP_BACKEND.md** ⭐ **NEW** - Comprehensive endpoint mapping table with auth, roles, DTOs, and error codes
+- **FEATURES_DOCUMENTATION.md** - Complete features documentation with implementation details
+- **PRODUCTION_HARDENING.md** - Production hardening implementation guide
+- **PRODUCTION_HARDENING_AUDIT.md** - Production hardening audit and improvements
+- **API_ENDPOINTS_DOCUMENTATION.md** - Complete API reference (all 78 endpoints)
 - **NEW_API_FEATURES_DOCUMENTATION.md** - Latest features documentation
 - **DATABASE_COMPATIBILITY_REPORT.md** - Database schema compatibility analysis
 - **MISSING_ENDPOINTS_REPORT.md** - Analysis of missing endpoints (now implemented)
+- **PROJECT_STRUCTURE.md** - Project organization and file structure
 
 ## 🗂️ Database Scripts
 
