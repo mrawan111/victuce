@@ -31,15 +31,14 @@ public class SecurityConfig {
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/actuator/health").permitAll()   // ✅ add this
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // Admin endpoints require ADMIN role
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // All other endpoints require authentication
                 .anyRequest().authenticated()
             )
+            
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
