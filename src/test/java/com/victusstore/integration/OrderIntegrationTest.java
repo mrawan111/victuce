@@ -157,6 +157,36 @@ public class OrderIntegrationTest {
     }
 
     @Test
+    void testIdempotency_SameKeyDifferentPayloadReturnsConflict() throws Exception {
+        String idempotencyKey = UUID.randomUUID().toString();
+
+        Map<String, Object> orderData1 = new HashMap<>();
+        orderData1.put("address", "123 Test St");
+        orderData1.put("phone_num", "1234567890");
+        orderData1.put("clear_cart", false);
+
+        Map<String, Object> orderData2 = new HashMap<>();
+        orderData2.put("address", "456 Other St"); // different payload
+        orderData2.put("phone_num", "1234567890");
+        orderData2.put("clear_cart", false);
+
+        // First request should succeed
+        mockMvc.perform(post("/api/orders/from-cart/" + testCart.getCartId())
+                        .header("Idempotency-Key", idempotencyKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderData1)))
+                .andExpect(status().isOk());
+
+        // Second request with same key but different payload should return 409
+        mockMvc.perform(post("/api/orders/from-cart/" + testCart.getCartId())
+                        .header("Idempotency-Key", idempotencyKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderData2)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("IDEMPOTENCY_KEY_REUSE_MISMATCH"));
+    }
+
+    @Test
     void testConcurrentCheckout_StockNeverNegative() throws Exception {
         // Set initial stock to 5
         testVariant.setStockQuantity(5);

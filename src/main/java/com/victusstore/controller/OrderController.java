@@ -120,9 +120,9 @@ public class OrderController {
         Cart cart = cartRepository.findById(cartId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found"));
 
-        // Check idempotency if key provided
+        // Check idempotency if key provided (enforce hash mismatch -> 409)
         if (idempotencyKey != null && !idempotencyKey.isEmpty()) {
-            Optional<String> cachedResponse = idempotencyService.getCachedResponse(
+            Optional<String> cachedResponse = idempotencyService.getCachedResponseOrThrowOnMismatch(
                     idempotencyKey, cart.getEmail(), endpoint, orderData);
             if (cachedResponse.isPresent()) {
                 try {

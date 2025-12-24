@@ -1,6 +1,7 @@
 package com.victusstore.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.victusstore.exception.IdempotencyMismatchException;
 import com.victusstore.model.IdempotencyKey;
 import com.victusstore.repository.IdempotencyKeyRepository;
 import org.slf4j.Logger;
@@ -29,37 +30,46 @@ public class IdempotencyService {
     @Value("${app.idempotency.ttl-hours:24}")
     private int ttlHours;
 
+    /**
+     * Fetch cached response or enforce mismatch rules under lock.
+     * If the key exists and request hash differs, throw IdempotencyMismatchException.
+     * If the hash matches and response exists, return it. Expired keys are removed.
+     */
     @Transactional
-    public Optional<String> getCachedResponse(String idempotencyKey, String userEmail, String endpoint, Object requestBody) {
-        Optional<IdempotencyKey> existing = idempotencyKeyRepository.findByKeyAndUserEmail(idempotencyKey, userEmail);
-        
-        if (existing.isPresent()) {
-            IdempotencyKey key = existing.get();
-            
-            // Check if expired
-            if (key.getExpiresAt().isBefore(LocalDateTime.now())) {
-                logger.debug("Idempotency key expired: {}", idempotencyKey);
-                idempotencyKeyRepository.delete(key);
-                return Optional.empty();
-            }
-            
-            // Verify endpoint matches
-            if (!key.getEndpoint().equals(endpoint)) {
-                logger.warn("Idempotency key endpoint mismatch: {} != {}", key.getEndpoint(), endpoint);
-                return Optional.empty();
-            }
-            
-            // Optionally verify request hash matches
-            String requestHash = computeRequestHash(requestBody);
-            if (key.getRequestHash() != null && !key.getRequestHash().equals(requestHash)) {
-                logger.warn("Idempotency key request hash mismatch");
-                return Optional.empty();
-            }
-            
+    public Optional<String> getCachedResponseOrThrowOnMismatch(String idempotencyKey, String userEmail, String endpoint, Object requestBody) {
+        Optional<IdempotencyKey> existing = idempotencyKeyRepository.findByKeyAndUserEmailForUpdate(idempotencyKey, userEmail);
+
+        if (existing.isEmpty()) {
+            return Optional.empty();
+        }
+
+        IdempotencyKey key = existing.get();
+
+        // Check if expired
+        if (key.getExpiresAt().isBefore(LocalDateTime.now())) {
+            logger.debug("Idempotency key expired: {}", idempotencyKey);
+            idempotencyKeyRepository.delete(key);
+            return Optional.empty();
+        }
+
+        // Verify endpoint matches (if not, treat as cache miss)
+        if (!key.getEndpoint().equals(endpoint)) {
+            logger.warn("Idempotency key endpoint mismatch: {} != {}", key.getEndpoint(), endpoint);
+            return Optional.empty();
+        }
+
+        // Verify request hash
+        String requestHash = computeRequestHash(requestBody);
+        if (key.getRequestHash() != null && requestHash != null && !key.getRequestHash().equals(requestHash)) {
+            logger.warn("Idempotency key request hash mismatch for key {}", idempotencyKey);
+            throw new IdempotencyMismatchException("Idempotency key reuse with different request payload");
+        }
+
+        if (key.getResponseBody() != null) {
             logger.info("Returning cached response for idempotency key: {}", idempotencyKey);
             return Optional.of(key.getResponseBody());
         }
-        
+
         return Optional.empty();
     }
 

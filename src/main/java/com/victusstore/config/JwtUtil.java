@@ -4,8 +4,10 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -15,12 +17,19 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "victus-store-secret-key-for-jwt-tokens-very-long-and-secure";
-    private static final int ACCESS_TOKEN_EXPIRATION = 900000; // 15 minutes in milliseconds
-    private static final int REFRESH_TOKEN_EXPIRATION = 604800000; // 7 days in milliseconds
+    // 15 minutes in milliseconds
+    private static final int ACCESS_TOKEN_EXPIRATION = 900000;
+    // 7 days in milliseconds
+    private static final int REFRESH_TOKEN_EXPIRATION = 604800000;
+
+    @Value("${app.jwt.secret:}")
+    private String secretKey;
 
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+        if (secretKey == null || secretKey.trim().isEmpty()) {
+            throw new IllegalStateException("JWT secret key is not configured. Set APP_JWT_SECRET / app.jwt.secret for production.");
+        }
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateAccessToken(String email, String role) {

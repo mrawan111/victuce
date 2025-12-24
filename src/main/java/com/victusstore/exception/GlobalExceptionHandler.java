@@ -104,6 +104,22 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.builder().error(errorDetail).build());
     }
 
+    @ExceptionHandler(IdempotencyMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyMismatchException(
+            IdempotencyMismatchException ex) {
+        String traceId = MDC.get("traceId");
+        logger.warn("Idempotency mismatch: {}", ex.getMessage());
+
+        ErrorResponse.ErrorDetail errorDetail = ErrorResponse.ErrorDetail.builder()
+                .code("IDEMPOTENCY_KEY_REUSE_MISMATCH")
+                .message(ex.getMessage())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.builder().error(errorDetail).build());
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(
             AccessDeniedException ex) {
