@@ -21,7 +21,11 @@ public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyKey, 
     Optional<IdempotencyKey> findByKeyAndUserEmail(String key, String userEmail);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<IdempotencyKey> findByKeyAndUserEmailForUpdate(String key, String userEmail);
+    @Query("SELECT i FROM IdempotencyKey i WHERE i.key = :key AND i.userEmail = :userEmail AND i.endpoint = :endpoint")
+    Optional<IdempotencyKey> findByKeyAndUserEmailAndEndpoint(
+            @Param("key") String key,
+            @Param("userEmail") String userEmail,
+            @Param("endpoint") String endpoint);
     
     @Modifying
     @Query("DELETE FROM IdempotencyKey i WHERE i.expiresAt < :now")

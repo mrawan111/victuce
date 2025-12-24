@@ -37,7 +37,8 @@ public class IdempotencyService {
      */
     @Transactional
     public Optional<String> getCachedResponseOrThrowOnMismatch(String idempotencyKey, String userEmail, String endpoint, Object requestBody) {
-        Optional<IdempotencyKey> existing = idempotencyKeyRepository.findByKeyAndUserEmailForUpdate(idempotencyKey, userEmail);
+        Optional<IdempotencyKey> existing = idempotencyKeyRepository.findByKeyAndUserEmailAndEndpoint(
+                idempotencyKey, userEmail, endpoint);
 
         if (existing.isEmpty()) {
             return Optional.empty();
