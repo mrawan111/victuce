@@ -1,9 +1,17 @@
 package com.victusstore.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.victusstore.exception.StockInsufficientException;
 import com.victusstore.model.*;
 import com.victusstore.repository.*;
+import com.victusstore.service.IdempotencyService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -12,11 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/orders")
-@CrossOrigin(origins = "*")
 public class OrderController {
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
 
     @Autowired
     private OrderRepository orderRepository;
@@ -32,6 +42,12 @@ public class OrderController {
 
     @Autowired
     private AccountRepository accountRepository;
+
+    @Autowired
+    private IdempotencyService idempotencyService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @GetMapping
     public ResponseEntity<List<Order>> getAllOrders() {
@@ -81,132 +97,167 @@ public class OrderController {
     }
 
     @PostMapping("/from-cart/{cartId}")
+    @Transactional
     public ResponseEntity<?> createOrderFromCart(
             @PathVariable Long cartId,
-            @RequestBody Map<String, Object> orderData) {
-        try {
-            // Get cart
-            Cart cart = cartRepository.findById(cartId)
-                    .orElseThrow(() -> new RuntimeException("Cart not found"));
+            @RequestBody @Valid com.victusstore.dto.CreateOrderRequest orderRequest,
+            HttpServletRequest request) {
+        
+        // Convert DTO to Map for idempotency service
+        Map<String, Object> orderData = new HashMap<>();
+        orderData.put("address", orderRequest.getAddress());
+        orderData.put("phone_num", orderRequest.getPhoneNum());
+        orderData.put("payment_method", orderRequest.getPaymentMethod());
+        orderData.put("order_status", orderRequest.getOrderStatus());
+        orderData.put("payment_status", orderRequest.getPaymentStatus());
+        orderData.put("clear_cart", orderRequest.getClearCart());
+        
+        // Check idempotency key
+        String idempotencyKey = request.getHeader("Idempotency-Key");
+        String endpoint = "/api/orders/from-cart/" + cartId;
+        
+        // Get cart and validate
+        Cart cart = cartRepository.findById(cartId)
+                .orElseThrow(() -> new IllegalArgumentException("Cart not found"));
 
-            // Get cart products
-            List<CartProduct> cartProducts = cartProductRepository.findByCartId(cartId);
-            if (cartProducts.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Cart is empty"));
-            }
-
-            // Get account for phone number if not provided
-            Account account = accountRepository.findByEmail(cart.getEmail())
-                    .orElseThrow(() -> new RuntimeException("Account not found"));
-
-            // Adjust quantities based on available stock and remove items with 0 quantity
-            List<CartProduct> adjustedCartProducts = new ArrayList<>();
-            BigDecimal totalPrice = BigDecimal.ZERO;
-
-            for (CartProduct cartProduct : cartProducts) {
-                ProductVariant variant = variantRepository.findById(cartProduct.getVariantId())
-                        .orElseThrow(() -> new RuntimeException("Product variant not found for cart item"));
-
-                int availableStock = variant.getStockQuantity();
-                int requestedQuantity = cartProduct.getQuantity();
-
-                if (availableStock <= 0) {
-                    // Skip this item as it's out of stock
-                    continue;
+        // Check idempotency if key provided (enforce hash mismatch -> 409)
+        if (idempotencyKey != null && !idempotencyKey.isEmpty()) {
+            Optional<String> cachedResponse = idempotencyService.getCachedResponseOrThrowOnMismatch(
+                    idempotencyKey, cart.getEmail(), endpoint, orderData);
+            if (cachedResponse.isPresent()) {
+                try {
+                    Map<String, Object> response = objectMapper.readValue(
+                            cachedResponse.get(), Map.class);
+                    logger.info("Returning cached response for idempotency key: {}", idempotencyKey);
+                    return ResponseEntity.ok(response);
+                } catch (Exception e) {
+                    logger.warn("Failed to parse cached response: {}", e.getMessage());
                 }
-
-                int adjustedQuantity = Math.min(requestedQuantity, availableStock);
-
-                // Update cart product quantity if adjusted
-                if (adjustedQuantity != requestedQuantity) {
-                    cartProduct.setQuantity(adjustedQuantity);
-                    cartProductRepository.save(cartProduct);
-                }
-
-                // Calculate total (quantity * price_at_time)
-                BigDecimal itemTotal = cartProduct.getPriceAtTime()
-                        .multiply(BigDecimal.valueOf(adjustedQuantity));
-                totalPrice = totalPrice.add(itemTotal);
-
-                adjustedCartProducts.add(cartProduct);
             }
-
-            // Check if we have any items left after stock adjustment
-            if (adjustedCartProducts.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "All items in cart are out of stock"));
-            }
-
-            // Create order
-            Order order = new Order();
-            order.setEmail(cart.getEmail());
-            order.setAddress((String) orderData.getOrDefault("address", ""));
-            // Handle null phone number from account
-            String phoneNum = (String) orderData.getOrDefault("phone_num",
-                    account.getPhoneNum() != null ? account.getPhoneNum() : "");
-            order.setPhoneNum(phoneNum);
-            order.setTotalPrice(totalPrice);
-            order.setOrderStatus((String) orderData.getOrDefault("order_status", "pending"));
-            order.setPaymentStatus((String) orderData.getOrDefault("payment_status", "pending"));
-            order.setPaymentMethod((String) orderData.get("payment_method"));
-            order.setOrderDate(LocalDateTime.now());
-            order.setUpdatedAt(LocalDateTime.now());
-
-            Order savedOrder = orderRepository.save(order);
-
-            // Update stock quantities and link cart products to order
-            for (CartProduct cartProduct : cartProducts) {
-                ProductVariant variant = variantRepository.findById(cartProduct.getVariantId())
-                        .orElseThrow(() -> new RuntimeException("Product variant not found"));
-
-                // Update stock
-                int newStock = variant.getStockQuantity() - cartProduct.getQuantity();
-                variant.setStockQuantity(newStock);
-                variant.setUpdatedAt(LocalDateTime.now());
-                variantRepository.save(variant);
-
-                // Link cart product to order
-                cartProduct.setOrderId(savedOrder.getOrderId());
-                cartProductRepository.save(cartProduct);
-            }
-
-            // Update cart total (optional - mark cart as inactive or clear it)
-            if (orderData.containsKey("clear_cart") && (Boolean) orderData.get("clear_cart")) {
-                cart.setIsActive(false);
-                cartRepository.save(cart);
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Order created successfully");
-            response.put("order_id", savedOrder.getOrderId());
-            response.put("total_price", savedOrder.getTotalPrice());
-            response.put("order_status", savedOrder.getOrderStatus());
-
-            // Include order items with product details for verification
-            List<Map<String, Object>> orderItemsDetails = new ArrayList<>();
-            for (CartProduct cartProduct : cartProducts) {
-                ProductVariant variant = variantRepository.findById(cartProduct.getVariantId()).orElse(null);
-                Map<String, Object> itemDetail = new HashMap<>();
-                itemDetail.put("variant_id", cartProduct.getVariantId());
-                itemDetail.put("quantity", cartProduct.getQuantity());
-                itemDetail.put("price_at_time", cartProduct.getPriceAtTime());
-                if (variant != null && variant.getProduct() != null) {
-                    itemDetail.put("product_name", variant.getProduct().getProductName());
-                    itemDetail.put("variant_details", variant.getColor() + " - " + variant.getSize());
-                } else {
-                    itemDetail.put("product_name", "Unknown");
-                    itemDetail.put("variant_details", "Unknown");
-                }
-                orderItemsDetails.add(itemDetail);
-            }
-            response.put("order_items", orderItemsDetails);
-
-            return ResponseEntity.ok(response);
-
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Failed to create order: " + e.getMessage()));
         }
+
+        // Get cart products
+        List<CartProduct> cartProducts = cartProductRepository.findByCartId(cartId);
+        if (cartProducts.isEmpty()) {
+            throw new IllegalArgumentException("Cart is empty");
+        }
+
+        // Get account
+        Account account = accountRepository.findByEmail(cart.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        // Validate stock with pessimistic locking and calculate total
+        BigDecimal totalPrice = BigDecimal.ZERO;
+        List<Map<String, Object>> orderItemsDetails = new ArrayList<>();
+
+        for (CartProduct cartProduct : cartProducts) {
+            // Lock variant row for update
+            ProductVariant variant = variantRepository.findByIdWithLock(cartProduct.getVariantId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Product variant not found for cart item: " + cartProduct.getVariantId()));
+
+            int availableStock = variant.getStockQuantity();
+            int requestedQuantity = cartProduct.getQuantity();
+
+            // Validate stock - prevent going below zero
+            if (availableStock < requestedQuantity) {
+                throw new StockInsufficientException(
+                        "Not enough stock for variant " + variant.getVariantId() + 
+                        ". Available: " + availableStock + ", Requested: " + requestedQuantity,
+                        variant.getVariantId(),
+                        availableStock,
+                        requestedQuantity);
+            }
+
+            // Calculate item total
+            BigDecimal itemTotal = cartProduct.getPriceAtTime()
+                    .multiply(BigDecimal.valueOf(requestedQuantity));
+            totalPrice = totalPrice.add(itemTotal);
+
+            // Prepare order item details
+            Map<String, Object> itemDetail = new HashMap<>();
+            itemDetail.put("variant_id", cartProduct.getVariantId());
+            itemDetail.put("quantity", requestedQuantity);
+            itemDetail.put("price_at_time", cartProduct.getPriceAtTime());
+            if (variant.getProduct() != null) {
+                itemDetail.put("product_name", variant.getProduct().getProductName());
+                itemDetail.put("variant_details", variant.getColor() + " - " + variant.getSize());
+            } else {
+                itemDetail.put("product_name", "Unknown");
+                itemDetail.put("variant_details", "Unknown");
+            }
+            orderItemsDetails.add(itemDetail);
+        }
+
+        // Create order
+        Order order = new Order();
+        order.setEmail(cart.getEmail());
+        order.setAddress(orderRequest.getAddress() != null ? orderRequest.getAddress() : "");
+        String phoneNum = orderRequest.getPhoneNum() != null ? orderRequest.getPhoneNum() :
+                (account.getPhoneNum() != null ? account.getPhoneNum() : "");
+        order.setPhoneNum(phoneNum);
+        order.setTotalPrice(totalPrice);
+        order.setOrderStatus(orderRequest.getOrderStatus() != null ? orderRequest.getOrderStatus() : "pending");
+        order.setPaymentStatus(orderRequest.getPaymentStatus() != null ? orderRequest.getPaymentStatus() : "pending");
+        order.setPaymentMethod(orderRequest.getPaymentMethod());
+        order.setOrderDate(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+
+        Order savedOrder = orderRepository.save(order);
+
+        // Update stock quantities and link cart products to order
+        for (CartProduct cartProduct : cartProducts) {
+            // Lock variant again to ensure consistency
+            ProductVariant variant = variantRepository.findByIdWithLock(cartProduct.getVariantId())
+                    .orElseThrow(() -> new IllegalArgumentException("Product variant not found"));
+
+            // Double-check stock before updating
+            int availableStock = variant.getStockQuantity();
+            int requestedQuantity = cartProduct.getQuantity();
+            
+            if (availableStock < requestedQuantity) {
+                throw new StockInsufficientException(
+                        "Stock changed during processing for variant " + variant.getVariantId(),
+                        variant.getVariantId(),
+                        availableStock,
+                        requestedQuantity);
+            }
+
+            // Update stock
+            int newStock = availableStock - requestedQuantity;
+            variant.setStockQuantity(newStock);
+            variant.setUpdatedAt(LocalDateTime.now());
+            variantRepository.save(variant);
+
+            // Link cart product to order
+            cartProduct.setOrderId(savedOrder.getOrderId());
+            cartProductRepository.save(cartProduct);
+        }
+
+        // Update cart (optional - mark cart as inactive)
+        if (orderRequest.getClearCart() != null && orderRequest.getClearCart()) {
+            cart.setIsActive(false);
+            cartRepository.save(cart);
+        }
+
+        // Build response
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Order created successfully");
+        response.put("order_id", savedOrder.getOrderId());
+        response.put("total_price", savedOrder.getTotalPrice());
+        response.put("order_status", savedOrder.getOrderStatus());
+        response.put("order_items", orderItemsDetails);
+
+        // Store idempotency key if provided
+        if (idempotencyKey != null && !idempotencyKey.isEmpty()) {
+            idempotencyService.storeResponse(
+                    idempotencyKey, cart.getEmail(), endpoint, orderData, response);
+        }
+
+        logger.info("Order created successfully: orderId={}, cartId={}, totalPrice={}", 
+                savedOrder.getOrderId(), cartId, totalPrice);
+        
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")

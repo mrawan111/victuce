@@ -2,9 +2,13 @@ package com.victusstore.controller;
 
 import com.victusstore.config.JwtUtil;
 import com.victusstore.model.Account;
+import com.victusstore.model.RefreshToken;
 import com.victusstore.model.Seller;
 import com.victusstore.repository.AccountRepository;
 import com.victusstore.repository.SellerRepository;
+import com.victusstore.service.RefreshTokenService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -15,8 +19,9 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
     private AccountRepository accountRepository;
@@ -29,6 +34,9 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, Object> request) {
@@ -72,14 +80,16 @@ public class AuthController {
                 account.setPhoneNum(cleanPhone);
             }
 
-            account.setSellerAccount((Boolean) request.getOrDefault("seller_account", false));
+            Boolean sellerAccount = (Boolean) request.getOrDefault("seller_account", false);
+            account.setSellerAccount(sellerAccount);
+            account.setRole(sellerAccount ? "SELLER" : "CUSTOMER");
             account.setCreatedAt(LocalDateTime.now());
             account.setIsActive(true);
 
             Account saved = accountRepository.save(account);
 
             Long sellerId = null;
-            if (account.getSellerAccount()) {
+            if (sellerAccount) {
                 Seller seller = new Seller();
                 seller.setEmail(email);
                 String firstName = account.getFirstName() != null ? account.getFirstName() : "";
@@ -92,17 +102,21 @@ public class AuthController {
                 sellerId = savedSeller.getSellerId();
             }
 
-            String token = jwtUtil.generateToken(saved.getEmail(), account.getSellerAccount());
+            // Generate access token and refresh token
+            String accessToken = jwtUtil.generateAccessToken(saved.getEmail(), saved.getRole());
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(saved.getEmail());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Account created successfully");
             response.put("email", saved.getEmail());
-            response.put("token", token);
+            response.put("access_token", accessToken);
+            response.put("refresh_token", refreshToken.getToken());
+            response.put("role", saved.getRole());
             if (sellerId != null) {
                 response.put("seller_id", sellerId);
             }
 
-            System.out.println("Registration successful for email: " + email);
+            logger.info("Registration successful for email: {}", email);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -151,21 +165,72 @@ public class AuthController {
             account.setLastLogin(LocalDateTime.now());
             accountRepository.save(account);
 
-            // Generate token
-            String token = jwtUtil.generateToken(account.getEmail(), account.getSellerAccount());
+            // Determine role
+            String role = account.getRole() != null ? account.getRole() : 
+                    (account.getSellerAccount() ? "SELLER" : "CUSTOMER");
+
+            // Generate access token and refresh token
+            String accessToken = jwtUtil.generateAccessToken(account.getEmail(), role);
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(account.getEmail());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Login successful");
-            response.put("token", token);
+            response.put("access_token", accessToken);
+            response.put("refresh_token", refreshToken.getToken());
             response.put("email", account.getEmail());
+            response.put("role", role);
             response.put("seller_account", account.getSellerAccount());
 
-            System.out.println("Login successful for email: " + email);
+            logger.info("Login successful for email: {}", email);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             System.err.println("Login error: " + e.getMessage());
             e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
+        }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+        try {
+            String refreshToken = request.get("refresh_token");
+            if (refreshToken == null || refreshToken.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Refresh token is required"));
+            }
+
+            RefreshToken token = refreshTokenService.verifyRefreshToken(refreshToken);
+            Account account = accountRepository.findByEmail(token.getUserEmail())
+                    .orElseThrow(() -> new RuntimeException("Account not found"));
+
+            if (!account.getIsActive()) {
+                return ResponseEntity.status(401).body(Map.of("error", "Account is deactivated"));
+            }
+
+            // Create new refresh token first (for replacement tracking)
+            RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(account.getEmail());
+            
+            // Revoke old token and mark it as replaced (token rotation)
+            refreshTokenService.revokeAndReplaceToken(refreshToken, newRefreshToken.getToken());
+
+            String role = account.getRole() != null ? account.getRole() : 
+                    (account.getSellerAccount() ? "SELLER" : "CUSTOMER");
+            String accessToken = jwtUtil.generateAccessToken(account.getEmail(), role);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("access_token", accessToken);
+            response.put("refresh_token", newRefreshToken.getToken());
+            response.put("email", account.getEmail());
+            response.put("role", role);
+
+            logger.info("Token refreshed for email: {}", account.getEmail());
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            logger.warn("Token refresh failed: {}", e.getMessage());
+            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Token refresh error: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
@@ -185,7 +250,8 @@ public class AuthController {
                 return ResponseEntity.ok(Map.of(
                     "password", true,
                     "exists", true,
-                    "is_seller", account.getSellerAccount()
+                    "is_seller", account.getSellerAccount(),
+                    "role", account.getRole() != null ? account.getRole() : "CUSTOMER"
                 ));
             } else {
                 return ResponseEntity.status(401).body(Map.of(

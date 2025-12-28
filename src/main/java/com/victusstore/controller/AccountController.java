@@ -47,9 +47,15 @@ public class AccountController {
     @PutMapping("/{email}")
     public ResponseEntity<?> updateAccount(@PathVariable String email, @RequestBody Account accountDetails) {
         try {
+<<<<<<< HEAD
             Optional<Account> accountOptional = accountRepository.findByEmail(email);
             if (accountOptional.isPresent()) {
                 Account account = accountOptional.get();
+=======
+            Optional<Account> accountOpt = accountRepository.findByEmail(email);
+            if (accountOpt.isPresent()) {
+                Account account = accountOpt.get();
+>>>>>>> b2b470be6abdc5e4b9b931f2384cc4f8a5d43437
                 account.setFirstName(accountDetails.getFirstName());
                 account.setLastName(accountDetails.getLastName());
                 account.setPhoneNum(accountDetails.getPhoneNum());
