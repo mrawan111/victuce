@@ -10,9 +10,11 @@ WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 
 # Set database environment variables
-ENV SPRING_DATASOURCE_URL=jdbc:postgresql://196.221.167.63:5432/mydb
+# Note: For Docker deployment, you may need to adjust connection settings
+# If SSH tunnel is required, consider using docker-compose with SSH tunnel service
+ENV SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/mydb
 ENV SPRING_DATASOURCE_USERNAME=admin
-ENV SPRING_DATASOURCE_PASSWORD=Amenhitham2@
+ENV SPRING_DATASOURCE_PASSWORD=Amenhaitham2@
 
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,0 +1,1299 @@
+{
+	"info": {
+		"_postman_id": "victusstore-api-collection",
+		"name": "VictusStore API - Complete Collection",
+		"description": "Complete API collection for VictusStore Backend - All 67+ endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"TestPassword123!\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"phone_num\": \"1234567890\",\n  \"seller_account\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"TestPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Check Account",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/auth/check_account/{{email}}/{{password}}",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "check_account", "{{email}}", "{{password}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Account Management",
+			"item": [
+				{
+					"name": "Get All Accounts",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/accounts",
+							"host": ["{{base_url}}"],
+							"path": ["accounts"]
+						}
+					}
+				},
+				{
+					"name": "Get Account by Email",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/accounts/{{email}}",
+							"host": ["{{base_url}}"],
+							"path": ["accounts", "{{email}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Account",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"New\",\n  \"lastName\": \"User\",\n  \"phoneNum\": \"1234567890\",\n  \"sellerAccount\": false,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts",
+							"host": ["{{base_url}}"],
+							"path": ["accounts"]
+						}
+					}
+				},
+				{
+					"name": "Update Account",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Updated\",\n  \"lastName\": \"Name\",\n  \"phoneNum\": \"9876543210\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/{{email}}",
+							"host": ["{{base_url}}"],
+							"path": ["accounts", "{{email}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Account",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/accounts/{{email}}",
+							"host": ["{{base_url}}"],
+							"path": ["accounts", "{{email}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Seller Management",
+			"item": [
+				{
+					"name": "Get All Sellers",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/sellers",
+							"host": ["{{base_url}}"],
+							"path": ["sellers"]
+						}
+					}
+				},
+				{
+					"name": "Get Seller by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/sellers/{{seller_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["sellers", "{{seller_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Seller",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sellerName\": \"Test Seller\",\n  \"email\": \"seller@example.com\",\n  \"rating\": 4.5,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sellers",
+							"host": ["{{base_url}}"],
+							"path": ["sellers"]
+						}
+					}
+				},
+				{
+					"name": "Update Seller",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sellerName\": \"Updated Seller Name\",\n  \"rating\": 5.0,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sellers/{{seller_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["sellers", "{{seller_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Seller",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/sellers/{{seller_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["sellers", "{{seller_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Category Management",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/categories",
+							"host": ["{{base_url}}"],
+							"path": ["categories"]
+						}
+					}
+				},
+				{
+					"name": "Get Category by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["categories", "{{category_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"categoryName\": \"Test Category\",\n  \"categoryImage\": \"https://example.com/image.jpg\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/categories",
+							"host": ["{{base_url}}"],
+							"path": ["categories"]
+						}
+					}
+				},
+				{
+					"name": "Update Category",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"categoryName\": \"Updated Category Name\",\n  \"categoryImage\": \"https://example.com/new-image.jpg\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["categories", "{{category_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Category",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["categories", "{{category_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Product Management",
+			"item": [
+				{
+					"name": "Get All Products (Paginated)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/products?page=0&size=10",
+							"host": ["{{base_url}}"],
+							"path": ["products"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Product by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["products", "{{product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"productName\": \"Test Product\",\n  \"description\": \"Test product description\",\n  \"basePrice\": 99.99,\n  \"categoryId\": {{category_id}},\n  \"sellerId\": {{seller_id}},\n  \"productRating\": 0.0,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products",
+							"host": ["{{base_url}}"],
+							"path": ["products"]
+						}
+					}
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"productName\": \"Updated Product Name\",\n  \"basePrice\": 129.99,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["products", "{{product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Product",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["products", "{{product_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Variant Management",
+			"item": [
+				{
+					"name": "Get All Variants",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/variants",
+							"host": ["{{base_url}}"],
+							"path": ["variants"]
+						}
+					}
+				},
+				{
+					"name": "Get Variant by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/variants/{{variant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["variants", "{{variant_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Check Variant Availability",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/variants/{{variant_id}}/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["variants", "{{variant_id}}", "check-availability"]
+						}
+					}
+				},
+				{
+					"name": "Get Variants by Product ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/variants/product/{{product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["variants", "product", "{{product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Variant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"productId\": {{product_id}},\n  \"color\": \"Red\",\n  \"size\": \"M\",\n  \"stockQuantity\": 100,\n  \"price\": 9.99,\n  \"sku\": \"SKU-RED-M\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/variants",
+							"host": ["{{base_url}}"],
+							"path": ["variants"]
+						}
+					}
+				},
+				{
+					"name": "Update Variant",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"stockQuantity\": 150,\n  \"price\": 11.99\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/variants/{{variant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["variants", "{{variant_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Cart Management",
+			"item": [
+				{
+					"name": "Get All Carts",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/carts",
+							"host": ["{{base_url}}"],
+							"path": ["carts"]
+						}
+					}
+				},
+				{
+					"name": "Get Cart by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/carts/{{cart_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["carts", "{{cart_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Cart by Email",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/carts/user/{{email}}",
+							"host": ["{{base_url}}"],
+							"path": ["carts", "user", "{{email}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{email}}\",\n  \"totalPrice\": 0.00,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/carts",
+							"host": ["{{base_url}}"],
+							"path": ["carts"]
+						}
+					}
+				},
+				{
+					"name": "Sync Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/carts/sync",
+							"host": ["{{base_url}}"],
+							"path": ["carts", "sync"]
+						}
+					}
+				},
+				{
+					"name": "Update Cart",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"totalPrice\": 199.98,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/carts/{{cart_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["carts", "{{cart_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Calculate Cart Total",
+					"request": {
+						"method": "PUT",
+						"url": {
+							"raw": "{{base_url}}/carts/{{cart_id}}/calculate-total",
+							"host": ["{{base_url}}"],
+							"path": ["carts", "{{cart_id}}", "calculate-total"]
+						}
+					}
+				},
+				{
+					"name": "Delete Cart",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/carts/{{cart_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["carts", "{{cart_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Cart Product Management",
+			"item": [
+				{
+					"name": "Get All Cart Products",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/cart-products",
+							"host": ["{{base_url}}"],
+							"path": ["cart-products"]
+						}
+					}
+				},
+				{
+					"name": "Get Cart Product by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/cart-products/{{cart_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["cart-products", "{{cart_product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Cart Products by Cart ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/cart-products/cart/{{cart_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["cart-products", "cart", "{{cart_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Add Product to Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"variant_id\": {{variant_id}},\n  \"cart_id\": {{cart_id}},\n  \"quantity\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/cart-products",
+							"host": ["{{base_url}}"],
+							"path": ["cart-products"]
+						}
+					}
+				},
+				{
+					"name": "Update Product Quantity in Cart",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cart_id\": {{cart_id}},\n  \"variant_id\": {{variant_id}},\n  \"quantity\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/cart-products",
+							"host": ["{{base_url}}"],
+							"path": ["cart-products"]
+						}
+					}
+				},
+				{
+					"name": "Remove Product from Cart",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/cart-products/{{cart_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["cart-products", "{{cart_product_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Order Management",
+			"item": [
+				{
+					"name": "Get All Orders",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/orders",
+							"host": ["{{base_url}}"],
+							"path": ["orders"]
+						}
+					}
+				},
+				{
+					"name": "Get Order by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/orders/{{order_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "{{order_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Orders by Email",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/orders/user/{{email}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "user", "{{email}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Order from Cart (Checkout)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"address\": \"123 Test Street, Test City\",\n  \"phone_num\": \"1234567890\",\n  \"payment_method\": \"credit_card\",\n  \"order_status\": \"pending\",\n  \"payment_status\": \"pending\",\n  \"clear_cart\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/from-cart/{{cart_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "from-cart", "{{cart_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Order Manually",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{email}}\",\n  \"address\": \"456 Manual Order St\",\n  \"phoneNum\": \"9876543210\",\n  \"totalPrice\": 199.98,\n  \"orderStatus\": \"pending\",\n  \"paymentStatus\": \"pending\",\n  \"paymentMethod\": \"paypal\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders",
+							"host": ["{{base_url}}"],
+							"path": ["orders"]
+						}
+					}
+				},
+				{
+					"name": "Update Order",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderStatus\": \"processing\",\n  \"paymentStatus\": \"paid\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/{{order_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "{{order_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Order",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/orders/{{order_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "{{order_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Image Management",
+			"item": [
+				{
+					"name": "Get All Images",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/images",
+							"host": ["{{base_url}}"],
+							"path": ["images"]
+						}
+					}
+				},
+				{
+					"name": "Get Image by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/images/{{image_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["images", "{{image_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Images by Product ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/images/product/{{product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["images", "product", "{{product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Image (URL-based)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"productId\": {{product_id}},\n  \"imageUrl\": \"https://example.com/test-image.jpg\",\n  \"isPrimary\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/images",
+							"host": ["{{base_url}}"],
+							"path": ["images"]
+						}
+					}
+				},
+				{
+					"name": "Upload Single Image",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "productId",
+									"value": "{{product_id}}",
+									"type": "text"
+								},
+								{
+									"key": "isPrimary",
+									"value": "true",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/images/upload",
+							"host": ["{{base_url}}"],
+							"path": ["images", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Upload Multiple Images",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files[]",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "productId",
+									"value": "{{product_id}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/images/upload-multiple",
+							"host": ["{{base_url}}"],
+							"path": ["images", "upload-multiple"]
+						}
+					}
+				},
+				{
+					"name": "Update Image",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageUrl\": \"https://example.com/new-image.jpg\",\n  \"isPrimary\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/images/{{image_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["images", "{{image_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Image",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/images/{{image_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["images", "{{image_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin Coupon Management",
+			"item": [
+				{
+					"name": "Get All Coupons",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/coupons",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons"]
+						}
+					}
+				},
+				{
+					"name": "Get Active Coupons",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/coupons/active",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons", "active"]
+						}
+					}
+				},
+				{
+					"name": "Get Coupon by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/coupons/{{coupon_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons", "{{coupon_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Coupon by Code",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/coupons/code/{{coupon_code}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons", "code", "{{coupon_code}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Coupon",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"couponCode\": \"SAVE20\",\n  \"description\": \"20% off on all items\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 20.00,\n  \"minPurchaseAmount\": 50.00,\n  \"maxDiscountAmount\": 100.00,\n  \"usageLimit\": 100,\n  \"validFrom\": \"2024-01-01T00:00:00\",\n  \"validUntil\": \"2024-12-31T23:59:59\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/coupons",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons"]
+						}
+					}
+				},
+				{
+					"name": "Validate Coupon",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cart_total\": 150.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/coupons/validate/{{coupon_code}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons", "validate", "{{coupon_code}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Coupon",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"discountValue\": 25.00,\n  \"maxDiscountAmount\": 150.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/coupons/{{coupon_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons", "{{coupon_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Coupon",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/admin/coupons/{{coupon_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "coupons", "{{coupon_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin Activity Management",
+			"item": [
+				{
+					"name": "Get All Activities",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/activities?page=0&size=20",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Activity by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/activities/{{activity_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities", "{{activity_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Activities by Admin Email",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/activities/admin/{{admin_email}}?page=0&size=20",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities", "admin", "{{admin_email}}"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Activities by Entity Type",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/activities/entity/PRODUCT",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities", "entity", "PRODUCT"]
+						}
+					}
+				},
+				{
+					"name": "Get Activities by Action Type",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/admin/activities/action/CREATE",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities", "action", "CREATE"]
+						}
+					}
+				},
+				{
+					"name": "Log Activity (Full Object)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"adminEmail\": \"admin@example.com\",\n  \"actionType\": \"CREATE\",\n  \"entityType\": \"PRODUCT\",\n  \"entityId\": {{product_id}},\n  \"description\": \"Created new product\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/activities",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities"]
+						}
+					}
+				},
+				{
+					"name": "Quick Log Activity",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"admin_email\": \"admin@example.com\",\n  \"action_type\": \"UPDATE\",\n  \"entity_type\": \"ORDER\",\n  \"entity_id\": {{order_id}},\n  \"description\": \"Updated order status\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/activities/quick-log",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities", "quick-log"]
+						}
+					}
+				},
+				{
+					"name": "Delete Activity",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/admin/activities/{{activity_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "activities", "{{activity_id}}"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api",
+			"type": "string"
+		},
+		{
+			"key": "email",
+			"value": "testuser@example.com",
+			"type": "string"
+		},
+		{
+			"key": "password",
+			"value": "TestPassword123!",
+			"type": "string"
+		},
+		{
+			"key": "seller_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "category_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "variant_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "cart_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "cart_product_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "image_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "coupon_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "coupon_code",
+			"value": "SAVE20",
+			"type": "string"
+		},
+		{
+			"key": "activity_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "admin_email",
+			"value": "admin@example.com",
+			"type": "string"
+		}
+	]
+}
+
