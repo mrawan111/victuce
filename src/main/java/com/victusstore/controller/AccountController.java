@@ -33,8 +33,8 @@ public class AccountController {
     @GetMapping("/{email}")
     public ResponseEntity<?> getAccountByEmail(@PathVariable String email) {
         return accountRepository.findByEmail(email)
-            .<ResponseEntity<?>>map(account -> ResponseEntity.ok(account))
-            .orElse(ResponseEntity.status(404).body(Map.of("error", "Account not found")));
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(404).body(Map.of("error", "Account not found")));
     }
 
     @PostMapping
@@ -47,44 +47,47 @@ public class AccountController {
     @PutMapping("/{email}")
     public ResponseEntity<?> updateAccount(@PathVariable String email, @RequestBody Account accountDetails) {
         try {
-<<<<<<< HEAD
-            Optional<Account> accountOptional = accountRepository.findByEmail(email);
-            if (accountOptional.isPresent()) {
-                Account account = accountOptional.get();
-=======
             Optional<Account> accountOpt = accountRepository.findByEmail(email);
+
             if (accountOpt.isPresent()) {
                 Account account = accountOpt.get();
->>>>>>> b2b470be6abdc5e4b9b931f2384cc4f8a5d43437
+
                 account.setFirstName(accountDetails.getFirstName());
                 account.setLastName(accountDetails.getLastName());
                 account.setPhoneNum(accountDetails.getPhoneNum());
-                // Only update password when a non-null, non-empty password is provided
+
+                // update password only if provided
                 if (accountDetails.getPassword() != null && !accountDetails.getPassword().isBlank()) {
                     account.setPassword(passwordEncoder.encode(accountDetails.getPassword()));
                 }
+
                 account.setIsActive(accountDetails.getIsActive());
                 account.setSellerAccount(accountDetails.getSellerAccount());
+
                 Account updatedAccount = accountRepository.save(account);
                 return ResponseEntity.ok(updatedAccount);
             } else {
                 return ResponseEntity.status(404).body(Map.of("error", "Account not found"));
             }
+
         } catch (Exception e) {
             logger.error("Failed to update account {}: {}", email, e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to update account", "details", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to update account",
+                    "details", e.getMessage()
+            ));
         }
     }
 
     @DeleteMapping("/{email}")
     public ResponseEntity<Map<String, Boolean>> deleteAccount(@PathVariable String email) {
         return accountRepository.findByEmail(email)
-            .map(account -> {
-                accountRepository.delete(account);
-                Map<String, Boolean> response = new HashMap<>();
-                response.put("deleted", Boolean.TRUE);
-                return ResponseEntity.ok(response);
-            })
-            .orElse(ResponseEntity.notFound().build());
+                .map(account -> {
+                    accountRepository.delete(account);
+                    Map<String, Boolean> response = new HashMap<>();
+                    response.put("deleted", Boolean.TRUE);
+                    return ResponseEntity.ok(response);
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 }
