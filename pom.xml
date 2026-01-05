@@ -81,7 +81,7 @@
         </dependency>
         <dependency>
             <groupId>com.cloudinary</groupId>
-            <artifactId>cloudinary-http44</artifactId>
+            <artifactId>cloudinary-http5</artifactId>
             <version>1.37.0</version>
         </dependency>
         <!-- Test Dependencies -->
