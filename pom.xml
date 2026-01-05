@@ -81,8 +81,13 @@
         </dependency>
         <dependency>
             <groupId>com.cloudinary</groupId>
-            <artifactId>cloudinary-http5</artifactId>
+            <artifactId>cloudinary-http44</artifactId>
             <version>1.37.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpmime</artifactId>
+            <version>4.5.14</version>
         </dependency>
         <!-- Test Dependencies -->
         <dependency>
