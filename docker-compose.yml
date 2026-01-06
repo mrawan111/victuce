@@ -2,10 +2,20 @@ version: '3.8'
 services:
   victusstore:
     build: .
-    network_mode: host
+    depends_on:
+      - db
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/mydb
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mydb
       - SPRING_DATASOURCE_USERNAME=admin
-      - SPRING_DATASOURCE_PASSWORD=Amenhaitham2@
+      - SPRING_DATASOURCE_PASSWORD=password
       - SPRING_PROFILES_ACTIVE=prod
     restart: unless-stopped
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=mydb
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
