@@ -16,7 +16,6 @@ import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/images")
-@CrossOrigin(origins = "*")
 public class ImageController {
 
     @Autowired

@@ -18,7 +18,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/carts")
-@CrossOrigin(origins = "*")
 public class CartController {
 
     @Autowired

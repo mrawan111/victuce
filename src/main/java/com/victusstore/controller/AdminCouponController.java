@@ -14,7 +14,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin/coupons")
-@CrossOrigin(origins = "*")
 public class AdminCouponController {
 
     @Autowired

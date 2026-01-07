@@ -18,7 +18,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/cart-products")
-@CrossOrigin(origins = "*")
 public class CartProductController {
 
     private static final Logger logger = LoggerFactory.getLogger(CartProductController.class);

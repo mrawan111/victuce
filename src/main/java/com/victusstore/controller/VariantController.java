@@ -12,7 +12,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/variants")
-@CrossOrigin(origins = "*")
 public class VariantController {
     @PutMapping("/{id}")
     public ResponseEntity<?> updateVariant(@PathVariable Long id, @RequestBody ProductVariant updatedVariant) {
