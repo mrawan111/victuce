@@ -185,8 +185,7 @@ public class AuthController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            System.err.println("Login error: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Login error: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
