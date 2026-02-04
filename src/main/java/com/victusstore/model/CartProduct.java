@@ -7,11 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "cart_products", 
-       uniqueConstraints = {
-           @UniqueConstraint(columnNames = {"cart_id", "variant_id"}, 
-                             name = "uk_cart_variant")
-       })
+@Table(name = "cart_products")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

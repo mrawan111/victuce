@@ -179,81 +179,28 @@ public class CartProductController {
                 }
             }
 
-            // Try to find existing cart product and handle duplicates gracefully
-            Optional<CartProduct> existingOpt = cartProductRepository.findByCartIdAndVariantId(cartId, variantId);
-
+            // Always create a new cart item (allow duplicates)
             Long cartProductId;
             Integer newQuantity;
             boolean isNewItem;
-
-            if (existingOpt.isPresent()) {
-                // Update existing cart item
-                CartProduct existing = existingOpt.get();
-                Integer currentQuantity = existing.getQuantity();
-                Integer totalQuantity = currentQuantity + quantity;
-                
-                // Validate total quantity against stock
-                if (totalQuantity > availableStock) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                        "error", "Insufficient stock for requested quantity",
-                        "current_in_cart", currentQuantity,
-                        "trying_to_add", quantity,
-                        "total_requested", totalQuantity,
-                        "available_stock", availableStock
-                    ));
-                }
-                
-                existing.setQuantity(totalQuantity);
-                existing.setPriceAtTime(priceAtTime);
-                CartProduct saved = cartProductRepository.save(existing);
+            
+            CartProduct cartProduct = new CartProduct();
+            cartProduct.setCartId(cartId);
+            cartProduct.setVariantId(variantId);
+            cartProduct.setQuantity(quantity);
+            cartProduct.setPriceAtTime(priceAtTime);
+            
+            try {
+                CartProduct saved = cartProductRepository.save(cartProduct);
                 cartProductId = saved.getId();
-                newQuantity = totalQuantity;
-                isNewItem = false;
-            } else {
-                // Try to add new cart item
-                try {
-                    CartProduct cartProduct = new CartProduct();
-                    cartProduct.setCartId(cartId);
-                    cartProduct.setVariantId(variantId);
-                    cartProduct.setQuantity(quantity);
-                    cartProduct.setPriceAtTime(priceAtTime);
-                    CartProduct saved = cartProductRepository.save(cartProduct);
-                    cartProductId = saved.getId();
-                    newQuantity = quantity;
-                    isNewItem = true;
-                } catch (Exception e) {
-                    // Handle potential duplicate constraint violation
-                    if (e.getMessage() != null && e.getMessage().contains("uk_cart_variant")) {
-                        // If duplicate constraint violated, try to update existing
-                        Optional<CartProduct> retryOpt = cartProductRepository.findByCartIdAndVariantId(cartId, variantId);
-                        if (retryOpt.isPresent()) {
-                            CartProduct existing = retryOpt.get();
-                            Integer currentQuantity = existing.getQuantity();
-                            Integer totalQuantity = currentQuantity + quantity;
-                            
-                            if (totalQuantity > availableStock) {
-                                return ResponseEntity.badRequest().body(Map.of(
-                                    "error", "Insufficient stock for requested quantity",
-                                    "current_in_cart", currentQuantity,
-                                    "trying_to_add", quantity,
-                                    "total_requested", totalQuantity,
-                                    "available_stock", availableStock
-                                ));
-                            }
-                            
-                            existing.setQuantity(totalQuantity);
-                            existing.setPriceAtTime(priceAtTime);
-                            CartProduct saved = cartProductRepository.save(existing);
-                            cartProductId = saved.getId();
-                            newQuantity = totalQuantity;
-                            isNewItem = false;
-                        } else {
-                            throw new RuntimeException("Unexpected error during cart product creation");
-                        }
-                    } else {
-                        throw e;
-                    }
-                }
+                newQuantity = quantity;
+                isNewItem = true;
+            } catch (Exception e) {
+                logger.error("Failed to save cart product: {}", e.getMessage());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Failed to add product to cart",
+                    "details", e.getMessage()
+                ));
             }
 
             // ⭐ ENHANCEMENT: Return detailed response with product information
