@@ -179,22 +179,40 @@ public class CartProductController {
                 }
             }
 
-            // Always create a new cart item (allow duplicates)
+            // Upsert cart item (prevent duplicates for same cart + variant)
             Long cartProductId;
             Integer newQuantity;
             boolean isNewItem;
-            
-            CartProduct cartProduct = new CartProduct();
-            cartProduct.setCartId(cartId);
-            cartProduct.setVariantId(variantId);
-            cartProduct.setQuantity(quantity);
-            cartProduct.setPriceAtTime(priceAtTime);
-            
+
+            List<CartProduct> existingItems = cartProductRepository.findAllByCartIdAndVariantId(cartId, variantId);
+            CartProduct cartProduct;
+
+            if (existingItems != null && !existingItems.isEmpty()) {
+                cartProduct = existingItems.get(0);
+                newQuantity = cartProduct.getQuantity() + quantity;
+                cartProduct.setQuantity(newQuantity);
+                cartProduct.setPriceAtTime(priceAtTime);
+                isNewItem = false;
+            } else {
+                cartProduct = new CartProduct();
+                cartProduct.setCartId(cartId);
+                cartProduct.setVariantId(variantId);
+                cartProduct.setQuantity(quantity);
+                cartProduct.setPriceAtTime(priceAtTime);
+                newQuantity = quantity;
+                isNewItem = true;
+            }
+
             try {
                 CartProduct saved = cartProductRepository.save(cartProduct);
                 cartProductId = saved.getId();
-                newQuantity = quantity;
-                isNewItem = true;
+
+                // Cleanup any duplicate rows that might exist
+                if (existingItems != null && existingItems.size() > 1) {
+                    for (int i = 1; i < existingItems.size(); i++) {
+                        cartProductRepository.deleteById(existingItems.get(i).getId());
+                    }
+                }
             } catch (Exception e) {
                 logger.error("Failed to save cart product: {}", e.getMessage());
                 return ResponseEntity.badRequest().body(Map.of(
@@ -297,13 +315,23 @@ public class CartProductController {
                 ));
             }
 
-            // Find and update cart product
-            CartProduct cartProduct = cartProductRepository.findByCartIdAndVariantId(cartId, variantId)
-                .orElseThrow(() -> new RuntimeException("Cart product not found"));
+            // Find and update cart product(s)
+            List<CartProduct> cartProducts = cartProductRepository.findAllByCartIdAndVariantId(cartId, variantId);
+            if (cartProducts == null || cartProducts.isEmpty()) {
+                throw new RuntimeException("Cart product not found");
+            }
 
-            Integer oldQuantity = cartProduct.getQuantity();
-            cartProduct.setQuantity(quantity);
-            cartProductRepository.save(cartProduct);
+            CartProduct primary = cartProducts.get(0);
+            Integer oldQuantity = primary.getQuantity();
+            primary.setQuantity(quantity);
+            cartProductRepository.save(primary);
+
+            // Cleanup duplicates if any
+            if (cartProducts.size() > 1) {
+                for (int i = 1; i < cartProducts.size(); i++) {
+                    cartProductRepository.deleteById(cartProducts.get(i).getId());
+                }
+            }
 
             // Return detailed response
             Product product = variant.getProduct();
