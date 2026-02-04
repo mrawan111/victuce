@@ -33,8 +33,9 @@ public class JwtUtil {
         String secret = secretKey;
         if (secret == null || secret.trim().isEmpty()) {
             // For production, this should never happen - always set APP_JWT_SECRET
-            // For development, use a consistent default secret
-            secret = "dev-secret-key-change-in-production-victusstore-2024";
+            // For development, generate a secure default
+            secret = "dev-secret-key-change-in-production-" + 
+                    java.util.UUID.randomUUID().toString().replace("-", "");
             logger.warn("JWT secret not configured, using development default. Set APP_JWT_SECRET environment variable for production.");
         }
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
