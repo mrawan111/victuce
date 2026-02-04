@@ -81,8 +81,16 @@ public class AuthController {
             }
 
             Boolean sellerAccount = (Boolean) request.getOrDefault("seller_account", false);
-            account.setSellerAccount(sellerAccount);
-            account.setRole(sellerAccount ? "SELLER" : "CUSTOMER");
+            String requestedRole = request.get("role") != null ? request.get("role").toString() : null;
+            String normalizedRole = requestedRole != null ? requestedRole.trim().toUpperCase() : null;
+
+            if ("ADMIN".equals(normalizedRole)) {
+                account.setSellerAccount(false);
+                account.setRole("ADMIN");
+            } else {
+                account.setSellerAccount(sellerAccount);
+                account.setRole(sellerAccount ? "SELLER" : "CUSTOMER");
+            }
             account.setCreatedAt(LocalDateTime.now());
             account.setIsActive(true);
 
