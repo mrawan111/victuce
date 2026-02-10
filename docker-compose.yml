@@ -9,6 +9,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=admin
       - SPRING_DATASOURCE_PASSWORD=password
       - SPRING_PROFILES_ACTIVE=prod
+      - APP_JWT_SECRET=victus-jwt-secret-5c0153345d3a4820a564cd73278408d1316ddef046f24d37a95cfc84
     restart: unless-stopped
 
   db:

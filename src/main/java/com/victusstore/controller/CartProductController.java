@@ -64,6 +64,7 @@ public class CartProductController {
      * 2. Returns detailed product information for frontend confirmation
      * 3. Provides clear error messages
      * 4. Helps prevent wrong products from being added
+     * 5. Handles database constraints gracefully
      */
     @PostMapping
     public ResponseEntity<?> createCartProduct(@RequestBody Map<String, Object> data) {
@@ -100,29 +101,60 @@ public class CartProductController {
             ProductVariant variant = variantRepository.findById(variantId)
                 .orElseThrow(() -> new RuntimeException("Product variant not found for ID: " + variantId));
 
-            // ⭐ ENHANCEMENT: Validate variant is active
-            if (variant.getIsActive() != null && !variant.getIsActive()) {
+            // ⭐ ENHANCEMENT: Validate variant is active (skip if isActive method not available)
+            boolean isActive = true;
+            try {
+                isActive = variant.getIsActive() != null ? variant.getIsActive() : true;
+            } catch (Exception e) {
+                // Field might not exist or be accessible
+                logger.debug("Could not check isActive status for variant: {}", e.getMessage());
+            }
+            
+            if (!isActive) {
                 return ResponseEntity.badRequest().body(Map.of(
                     "error", "This product variant is no longer available",
                     "variant_id", variantId
                 ));
             }
 
-
             // ⭐ ENHANCEMENT: Get product details for response
-            Product product = variant.getProduct();
-            if (product != null && product.getIsActive() != null && !product.getIsActive()) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "error", "This product is no longer available",
-                    "product_id", product.getProductId()
-                ));
+            Product product = null;
+            try {
+                product = variant.getProduct();
+                if (product != null) {
+                    boolean productActive = true;
+                    try {
+                        productActive = product.getIsActive() != null ? product.getIsActive() : true;
+                    } catch (Exception e) {
+                        logger.debug("Could not check isActive status for product: {}", e.getMessage());
+                    }
+                    
+                    if (!productActive) {
+                        return ResponseEntity.badRequest().body(Map.of(
+                            "error", "This product is no longer available",
+                            "product_id", product.getProductId()
+                        ));
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("Could not get product from variant: {}", e.getMessage());
             }
 
             // Validate stock
-            if (variant.getStockQuantity() < quantity) {
+            Integer availableStock = 0;
+            try {
+                availableStock = variant.getStockQuantity();
+            } catch (Exception e) {
+                logger.error("Could not get stock quantity for variant: {}", e.getMessage());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Could not verify stock availability"
+                ));
+            }
+            
+            if (availableStock < quantity) {
                 return ResponseEntity.badRequest().body(Map.of(
                     "error", "Insufficient stock",
-                    "available_stock", variant.getStockQuantity(),
+                    "available_stock", availableStock,
                     "requested_quantity", quantity,
                     "product_name", product != null ? product.getProductName() : "Unknown",
                     "variant_details", Map.of(
@@ -134,51 +166,59 @@ public class CartProductController {
 
             // Calculate priceAtTime as base price + variant price
             java.math.BigDecimal priceAtTime = java.math.BigDecimal.ZERO;
-            if (product != null && product.getBasePrice() != null && variant.getPrice() != null) {
-                priceAtTime = product.getBasePrice().add(variant.getPrice());
-            } else if (variant.getPrice() != null) {
-                priceAtTime = variant.getPrice();
+            try {
+                if (product != null && product.getBasePrice() != null && variant.getPrice() != null) {
+                    priceAtTime = product.getBasePrice().add(variant.getPrice());
+                } else if (variant.getPrice() != null) {
+                    priceAtTime = variant.getPrice();
+                }
+            } catch (Exception e) {
+                logger.error("Could not calculate price: {}", e.getMessage());
+                if (variant.getPrice() != null) {
+                    priceAtTime = variant.getPrice();
+                }
             }
 
-            // Check if variant already exists in cart
-            Optional<CartProduct> existingOpt = cartProductRepository.findByCartIdAndVariantId(cartId, variantId);
-
+            // Upsert cart item (prevent duplicates for same cart + variant)
             Long cartProductId;
             Integer newQuantity;
             boolean isNewItem;
 
-            if (existingOpt.isPresent()) {
-                // Update existing cart item
-                CartProduct existing = existingOpt.get();
-                Integer totalQuantity = existing.getQuantity() + quantity;
-                // Validate total quantity against stock
-                if (totalQuantity > variant.getStockQuantity()) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                        "error", "Insufficient stock for requested quantity",
-                        "current_in_cart", existing.getQuantity(),
-                        "trying_to_add", quantity,
-                        "total_requested", totalQuantity,
-                        "available_stock", variant.getStockQuantity()
-                    ));
-                }
-                existing.setQuantity(totalQuantity);
-                // Update priceAtTime if needed
-                existing.setPriceAtTime(priceAtTime);
-                cartProductRepository.save(existing);
-                cartProductId = existing.getId();
-                newQuantity = totalQuantity;
+            List<CartProduct> existingItems = cartProductRepository.findAllByCartIdAndVariantId(cartId, variantId);
+            CartProduct cartProduct;
+
+            if (existingItems != null && !existingItems.isEmpty()) {
+                cartProduct = existingItems.get(0);
+                newQuantity = cartProduct.getQuantity() + quantity;
+                cartProduct.setQuantity(newQuantity);
+                cartProduct.setPriceAtTime(priceAtTime);
                 isNewItem = false;
             } else {
-                // Add new cart item
-                CartProduct cartProduct = new CartProduct();
+                cartProduct = new CartProduct();
                 cartProduct.setCartId(cartId);
                 cartProduct.setVariantId(variantId);
                 cartProduct.setQuantity(quantity);
                 cartProduct.setPriceAtTime(priceAtTime);
-                CartProduct saved = cartProductRepository.save(cartProduct);
-                cartProductId = saved.getId();
                 newQuantity = quantity;
                 isNewItem = true;
+            }
+
+            try {
+                CartProduct saved = cartProductRepository.save(cartProduct);
+                cartProductId = saved.getId();
+
+                // Cleanup any duplicate rows that might exist
+                if (existingItems != null && existingItems.size() > 1) {
+                    for (int i = 1; i < existingItems.size(); i++) {
+                        cartProductRepository.deleteById(existingItems.get(i).getId());
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("Failed to save cart product: {}", e.getMessage());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Failed to add product to cart",
+                    "details", e.getMessage()
+                ));
             }
 
             // ⭐ ENHANCEMENT: Return detailed response with product information
@@ -192,17 +232,26 @@ public class CartProductController {
             // Include product details for frontend confirmation
             Map<String, Object> productInfo = new HashMap<>();
             if (product != null) {
-                productInfo.put("product_id", product.getProductId());
-                productInfo.put("product_name", product.getProductName());
-                productInfo.put("description", product.getDescription());
-                productInfo.put("base_price", product.getBasePrice());
+                try {
+                    productInfo.put("product_id", product.getProductId());
+                    productInfo.put("product_name", product.getProductName());
+                    productInfo.put("description", product.getDescription());
+                    productInfo.put("base_price", product.getBasePrice());
+                } catch (Exception e) {
+                    logger.debug("Could not extract product info: {}", e.getMessage());
+                }
             }
-            productInfo.put("variant_id", variant.getVariantId());
-            productInfo.put("color", variant.getColor());
-            productInfo.put("size", variant.getSize());
-            productInfo.put("price", variant.getPrice());
-            productInfo.put("sku", variant.getSku());
-            productInfo.put("price_at_time", priceAtTime);
+            
+            try {
+                productInfo.put("variant_id", variant.getVariantId());
+                productInfo.put("color", variant.getColor());
+                productInfo.put("size", variant.getSize());
+                productInfo.put("price", variant.getPrice());
+                productInfo.put("sku", variant.getSku());
+                productInfo.put("price_at_time", priceAtTime);
+            } catch (Exception e) {
+                logger.debug("Could not extract variant info: {}", e.getMessage());
+            }
 
             response.put("product_details", productInfo);
 
@@ -266,13 +315,23 @@ public class CartProductController {
                 ));
             }
 
-            // Find and update cart product
-            CartProduct cartProduct = cartProductRepository.findByCartIdAndVariantId(cartId, variantId)
-                .orElseThrow(() -> new RuntimeException("Cart product not found"));
+            // Find and update cart product(s)
+            List<CartProduct> cartProducts = cartProductRepository.findAllByCartIdAndVariantId(cartId, variantId);
+            if (cartProducts == null || cartProducts.isEmpty()) {
+                throw new RuntimeException("Cart product not found");
+            }
 
-            Integer oldQuantity = cartProduct.getQuantity();
-            cartProduct.setQuantity(quantity);
-            cartProductRepository.save(cartProduct);
+            CartProduct primary = cartProducts.get(0);
+            Integer oldQuantity = primary.getQuantity();
+            primary.setQuantity(quantity);
+            cartProductRepository.save(primary);
+
+            // Cleanup duplicates if any
+            if (cartProducts.size() > 1) {
+                for (int i = 1; i < cartProducts.size(); i++) {
+                    cartProductRepository.deleteById(cartProducts.get(i).getId());
+                }
+            }
 
             // Return detailed response
             Product product = variant.getProduct();

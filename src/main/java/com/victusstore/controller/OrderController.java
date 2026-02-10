@@ -149,44 +149,107 @@ public class OrderController {
         // Validate stock with pessimistic locking and calculate total
         BigDecimal totalPrice = BigDecimal.ZERO;
         List<Map<String, Object>> orderItemsDetails = new ArrayList<>();
+        List<String> stockIssues = new ArrayList<>();
 
         for (CartProduct cartProduct : cartProducts) {
-            // Lock variant row for update
-            ProductVariant variant = variantRepository.findByIdWithLock(cartProduct.getVariantId())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Product variant not found for cart item: " + cartProduct.getVariantId()));
+            try {
+                // Lock variant row for update
+                ProductVariant variant = variantRepository.findByIdWithLock(cartProduct.getVariantId())
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Product variant not found for cart item: " + cartProduct.getVariantId()));
 
-            int availableStock = variant.getStockQuantity();
-            int requestedQuantity = cartProduct.getQuantity();
+                int availableStock = 0;
+                try {
+                    availableStock = variant.getStockQuantity();
+                } catch (Exception e) {
+                    logger.error("Could not get stock quantity for variant {}: {}", 
+                            variant.getVariantId(), e.getMessage());
+                    throw new IllegalArgumentException("Unable to verify stock for product variant: " + variant.getVariantId());
+                }
+                
+                int requestedQuantity = 0;
+                try {
+                    requestedQuantity = cartProduct.getQuantity();
+                } catch (Exception e) {
+                    logger.error("Could not get quantity for cart product {}: {}", 
+                            cartProduct.getId(), e.getMessage());
+                    throw new IllegalArgumentException("Unable to verify quantity for cart item: " + cartProduct.getId());
+                }
 
-            // Validate stock - prevent going below zero
-            if (availableStock < requestedQuantity) {
-                throw new StockInsufficientException(
-                        "Not enough stock for variant " + variant.getVariantId() + 
-                        ". Available: " + availableStock + ", Requested: " + requestedQuantity,
-                        variant.getVariantId(),
-                        availableStock,
-                        requestedQuantity);
+                // Validate stock - prevent going below zero
+                if (availableStock < requestedQuantity) {
+                    String productName = "Unknown Product";
+                    String variantDetails = "Unknown Variant";
+                    
+                    try {
+                        if (variant.getProduct() != null) {
+                            productName = variant.getProduct().getProductName();
+                            variantDetails = variant.getColor() + " - " + variant.getSize();
+                        }
+                    } catch (Exception e) {
+                        logger.debug("Could not get product details: {}", e.getMessage());
+                    }
+                    
+                    String stockIssue = String.format(
+                        "Insufficient stock for %s (%s). Available: %d, Requested: %d",
+                        productName, variantDetails, availableStock, requestedQuantity
+                    );
+                    stockIssues.add(stockIssue);
+                    
+                    // Continue checking other items to give complete error information
+                    continue;
+                }
+
+                // Calculate item total
+                BigDecimal itemTotal = BigDecimal.ZERO;
+                try {
+                    itemTotal = cartProduct.getPriceAtTime()
+                            .multiply(BigDecimal.valueOf(requestedQuantity));
+                } catch (Exception e) {
+                    logger.error("Could not calculate item total: {}", e.getMessage());
+                    throw new IllegalArgumentException("Unable to calculate price for cart item: " + cartProduct.getId());
+                }
+                
+                totalPrice = totalPrice.add(itemTotal);
+
+                // Prepare order item details
+                Map<String, Object> itemDetail = new HashMap<>();
+                itemDetail.put("variant_id", cartProduct.getVariantId());
+                itemDetail.put("quantity", requestedQuantity);
+                itemDetail.put("price_at_time", cartProduct.getPriceAtTime());
+                
+                try {
+                    if (variant.getProduct() != null) {
+                        itemDetail.put("product_name", variant.getProduct().getProductName());
+                        itemDetail.put("variant_details", variant.getColor() + " - " + variant.getSize());
+                    } else {
+                        itemDetail.put("product_name", "Unknown");
+                        itemDetail.put("variant_details", "Unknown");
+                    }
+                } catch (Exception e) {
+                    logger.debug("Could not extract product details: {}", e.getMessage());
+                    itemDetail.put("product_name", "Unknown");
+                    itemDetail.put("variant_details", "Unknown");
+                }
+                
+                orderItemsDetails.add(itemDetail);
+                
+            } catch (Exception e) {
+                logger.error("Error processing cart product {}: {}", cartProduct.getId(), e.getMessage());
+                throw new IllegalArgumentException("Error processing cart item: " + e.getMessage());
             }
+        }
 
-            // Calculate item total
-            BigDecimal itemTotal = cartProduct.getPriceAtTime()
-                    .multiply(BigDecimal.valueOf(requestedQuantity));
-            totalPrice = totalPrice.add(itemTotal);
+        // If there are stock issues, return detailed error
+        if (!stockIssues.isEmpty()) {
+            throw new StockInsufficientException(
+                "Stock validation failed for one or more items:\n" + String.join("\n", stockIssues),
+                null, null, null);
+        }
 
-            // Prepare order item details
-            Map<String, Object> itemDetail = new HashMap<>();
-            itemDetail.put("variant_id", cartProduct.getVariantId());
-            itemDetail.put("quantity", requestedQuantity);
-            itemDetail.put("price_at_time", cartProduct.getPriceAtTime());
-            if (variant.getProduct() != null) {
-                itemDetail.put("product_name", variant.getProduct().getProductName());
-                itemDetail.put("variant_details", variant.getColor() + " - " + variant.getSize());
-            } else {
-                itemDetail.put("product_name", "Unknown");
-                itemDetail.put("variant_details", "Unknown");
-            }
-            orderItemsDetails.add(itemDetail);
+        // Ensure we have at least one valid item
+        if (orderItemsDetails.isEmpty()) {
+            throw new IllegalArgumentException("No valid items available for order");
         }
 
         // Create order
