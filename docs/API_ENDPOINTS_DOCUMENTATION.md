@@ -20,74 +20,395 @@ VictusStore is a lightweight, production-oriented e-commerce backend implemented
 - **CORS-enabled, JWT-ready**: APIs are CORS-friendly for frontend integration and include authentication endpoints (JWT) ready to protect routes.
 - **Pragmatic API design**: Endpoints follow RESTful conventions, provide helpful response payloads, and include convenience endpoints (get cart by email, get orders by email).
 
+---
 
-## Authentication Endpoints (`/api/auth`)
+## Endpoint Catalog (Summary)
 
-### 1. Register User
+This section gives a **compact, professional overview of every HTTP endpoint** in the backend.  
+Detailed request/response examples for most endpoints are available in the sections that follow.
+
+### Legend
+
+- **Auth**: ✅ = JWT access token required, ❌ = Public  
+- **Role**: CUSTOMER, SELLER, ADMIN, or ❌ = No specific role required  
+- **Rate Limit**: ✅ = Rate limited (see [Rate Limiting Details](#rate-limiting-details))  
+- **Idempotent**: ✅ = Supports `Idempotency-Key` header
+
+---
+
+### Authentication (`/api/auth`)
+
+| Method | Endpoint                                  | Auth | Role | Rate Limit | Notes / Response |
+|--------|-------------------------------------------|------|------|------------|------------------|
+| POST   | `/api/auth/register`                      | ❌   | ❌   | ✅ (3/min) | Registers account, returns `{access_token, refresh_token, email, role}` |
+| POST   | `/api/auth/login`                         | ❌   | ❌   | ✅ (5/min) | Authenticates user, returns `{access_token, refresh_token, email, role}` |
+| POST   | `/api/auth/refresh`                       | ❌   | ❌   | ❌         | Refreshes tokens using `refresh_token` |
+| GET    | `/api/auth/check_account/{email}/{password}` | ❌ | ❌   | ❌         | Quick password and existence check |
+| POST   | `/api/auth/change-password`               | ✅   | Any | ❌         | Change password for current authenticated user |
+
+---
+
+### Health & Monitoring
+
+| Method | Endpoint        | Auth | Role | Rate Limit | Notes / Response |
+|--------|-----------------|------|------|------------|------------------|
+| GET    | `/api/health`   | ❌   | ❌   | ❌         | Health probe: `{status, application, version, uptime, database}` |
+
+---
+
+### Account Management (`/api/accounts`)
+
+| Method | Endpoint                    | Auth | Role | Rate Limit | Notes / Response |
+|--------|-----------------------------|------|------|------------|------------------|
+| GET    | `/api/accounts`             | ✅   | ❌   | ❌         | List all accounts |
+| GET    | `/api/accounts/{email}`     | ✅   | ❌   | ❌         | Get account by email |
+| POST   | `/api/accounts`             | ✅   | ❌   | ❌         | Create account (password hashed) |
+| PUT    | `/api/accounts/{email}`     | ✅   | ❌   | ❌         | Update account |
+| DELETE | `/api/accounts/{email}`     | ✅   | ❌   | ❌         | Delete account |
+
+---
+
+### Seller Management (`/api/sellers`)
+
+| Method | Endpoint                | Auth | Role | Rate Limit | Notes / Response |
+|--------|-------------------------|------|------|------------|------------------|
+| GET    | `/api/sellers`          | ✅   | ❌   | ❌         | List all sellers |
+| GET    | `/api/sellers/{id}`     | ✅   | ❌   | ❌         | Get seller by ID |
+| POST   | `/api/sellers`          | ✅   | ❌   | ❌         | Create seller |
+| PUT    | `/api/sellers/{id}`     | ✅   | ❌   | ❌         | Update seller |
+| DELETE | `/api/sellers/{id}`     | ✅   | ❌   | ❌         | Delete seller |
+
+---
+
+### Category Management (`/api/categories`)
+
+| Method | Endpoint                    | Auth | Role | Rate Limit | Notes / Response |
+|--------|-----------------------------|------|------|------------|------------------|
+| GET    | `/api/categories`           | ✅   | ❌   | ❌         | List categories |
+| GET    | `/api/categories/{id}`      | ✅   | ❌   | ❌         | Get category by ID |
+| POST   | `/api/categories`           | ✅   | ❌   | ❌         | Create category |
+| PUT    | `/api/categories/{id}`      | ✅   | ❌   | ❌         | Update category |
+| DELETE | `/api/categories/{id}`      | ✅   | ❌   | ❌         | Delete category |
+
+---
+
+### Product Management (`/api/products`)
+
+| Method | Endpoint                                     | Auth | Role | Rate Limit | Notes / Response |
+|--------|----------------------------------------------|------|------|------------|------------------|
+| GET    | `/api/products`                              | ✅   | ❌   | ❌         | Paginated products (`page`, `size`) |
+| GET    | `/api/products/{id}`                         | ✅   | ❌   | ❌         | Get product by ID |
+| GET    | `/api/products/category/{categoryId}`        | ✅   | ❌   | ❌         | Get products for a category |
+| POST   | `/api/products`                              | ✅   | ❌   | ❌         | Create product |
+| PUT    | `/api/products/{id}`                         | ✅   | ❌   | ❌         | Update product |
+| DELETE | `/api/products/{id}`                         | ✅   | ❌   | ❌         | Delete product |
+
+---
+
+### Product Variant Management (`/api/variants`)
+
+| Method | Endpoint                                     | Auth | Role | Rate Limit | Notes / Response |
+|--------|----------------------------------------------|------|------|------------|------------------|
+| GET    | `/api/variants`                              | ✅   | ❌   | ❌         | List all variants |
+| GET    | `/api/variants/{id}`                         | ✅   | ❌   | ❌         | Get variant by ID |
+| GET    | `/api/variants/{id}/check-availability`      | ✅   | ❌   | ❌         | Stock availability view |
+| GET    | `/api/variants/product/{productId}`          | ✅   | ❌   | ❌         | Variants for given product |
+| POST   | `/api/variants`                              | ✅   | ❌   | ❌         | Create variant |
+| PUT    | `/api/variants/{id}`                         | ✅   | ❌   | ❌         | Update variant |
+
+---
+
+### Cart Management (`/api/carts`)
+
+| Method | Endpoint                              | Auth | Role | Rate Limit | Notes / Response |
+|--------|---------------------------------------|------|------|------------|------------------|
+| GET    | `/api/carts`                          | ✅   | ❌   | ❌         | List carts |
+| GET    | `/api/carts/{id}`                     | ✅   | ❌   | ❌         | Get cart by ID |
+| GET    | `/api/carts/user/{email}`             | ✅   | ❌   | ❌         | Get cart by user email |
+| POST   | `/api/carts`                          | ✅   | ❌   | ❌         | Create cart |
+| POST   | `/api/carts/sync`                     | ✅   | ❌   | ❌         | Sync cart by email |
+| PUT    | `/api/carts/{id}`                     | ✅   | ❌   | ❌         | Update cart fields |
+| PUT    | `/api/carts/{id}/calculate-total`     | ✅   | ❌   | ❌         | Recalculate total |
+| DELETE | `/api/carts/{id}`                     | ✅   | ❌   | ❌         | Delete cart |
+
+---
+
+### Cart Product Management (`/api/cart-products`)
+
+| Method | Endpoint                                 | Auth | Role | Rate Limit | Notes / Response |
+|--------|------------------------------------------|------|------|------------|------------------|
+| GET    | `/api/cart-products`                     | ✅   | ❌   | ❌         | List all cart items |
+| GET    | `/api/cart-products/{id}`                | ✅   | ❌   | ❌         | Get cart item by ID |
+| GET    | `/api/cart-products/cart/{cartId}`       | ✅   | ❌   | ❌         | Items for a cart |
+| POST   | `/api/cart-products`                     | ✅   | ❌   | ❌         | Add variant to cart |
+| PUT    | `/api/cart-products`                     | ✅   | ❌   | ❌         | Update quantity |
+| DELETE | `/api/cart-products/{id}`                | ✅   | ❌   | ❌         | Remove item from cart |
+
+---
+
+### Order Management (`/api/orders`)
+
+| Method | Endpoint                                  | Auth | Role | Rate Limit | Idempotent | Notes / Response |
+|--------|-------------------------------------------|------|------|------------|-----------|------------------|
+| GET    | `/api/orders`                             | ✅   | ❌   | ❌         | ❌        | List all orders |
+| GET    | `/api/orders/with-products`               | ✅   | ❌   | ❌         | ❌        | Orders with product details |
+| GET    | `/api/orders/{id}`                        | ✅   | ❌   | ❌         | ❌        | Get order by ID |
+| GET    | `/api/orders/user/{email}`                | ✅   | ❌   | ❌         | ❌        | Orders for a user |
+| POST   | `/api/orders`                             | ✅   | ❌   | ❌         | ❌        | Create order manually |
+| POST   | `/api/orders/from-cart/{cartId}`          | ✅   | ❌   | ✅ (10/min) | ✅       | Checkout from cart (stock + totals) |
+| PUT    | `/api/orders/{id}`                        | ✅   | ❌   | ❌         | ❌        | Update order |
+| DELETE | `/api/orders/{id}`                        | ✅   | ❌   | ❌         | ❌        | Delete order |
+
+---
+
+### Image Management (`/api/images`)
+
+| Method | Endpoint                                 | Auth | Role | Rate Limit | Notes / Response |
+|--------|------------------------------------------|------|------|------------|------------------|
+| GET    | `/api/images`                            | ✅   | ❌   | ❌         | List all images |
+| GET    | `/api/images/{id}`                       | ✅   | ❌   | ❌         | Get image by ID |
+| GET    | `/api/images/product/{productId}`        | ✅   | ❌   | ❌         | Images for a product |
+| POST   | `/api/images/upload`                     | ✅   | ❌   | ❌         | Upload single image (`multipart/form-data`) |
+| POST   | `/api/images/upload-multiple`            | ✅   | ❌   | ❌         | Upload multiple images |
+| POST   | `/api/images`                            | ✅   | ❌   | ❌         | Create image record (URL-based) |
+| PUT    | `/api/images/{id}`                       | ✅   | ❌   | ❌         | Update image |
+| DELETE | `/api/images/{id}`                       | ✅   | ❌   | ❌         | Delete image |
+
+---
+
+### Admin Coupons (`/api/admin/coupons`)
+
+| Method | Endpoint                                   | Auth | Role | Rate Limit | Notes / Response |
+|--------|--------------------------------------------|------|------|------------|------------------|
+| GET    | `/api/admin/coupons`                       | ✅   | ADMIN | ❌        | List all coupons |
+| GET    | `/api/admin/coupons/active`                | ✅   | ADMIN | ❌        | List active coupons |
+| GET    | `/api/admin/coupons/{id}`                  | ✅   | ADMIN | ❌        | Get coupon by ID |
+| GET    | `/api/admin/coupons/code/{code}`           | ✅   | ADMIN | ❌        | Get coupon by code |
+| POST   | `/api/admin/coupons`                       | ✅   | ADMIN | ❌        | Create coupon |
+| PUT    | `/api/admin/coupons/{id}`                  | ✅   | ADMIN | ❌        | Update coupon |
+| DELETE | `/api/admin/coupons/{id}`                  | ✅   | ADMIN | ❌        | Delete coupon |
+| POST   | `/api/admin/coupons/validate/{code}`       | ✅   | ADMIN | ✅ (20/min) | Validate coupon & compute discount |
+
+---
+
+### Admin Activity Logging (`/api/admin/activities`)
+
+| Method | Endpoint                                          | Auth | Role | Rate Limit | Notes / Response |
+|--------|---------------------------------------------------|------|------|------------|------------------|
+| GET    | `/api/admin/activities`                           | ✅   | ADMIN | ❌       | Paginated activities (`page`, `size`) |
+| GET    | `/api/admin/activities/{id}`                      | ✅   | ADMIN | ❌       | Get activity by ID |
+| GET    | `/api/admin/activities/admin/{email}`             | ✅   | ADMIN | ❌       | Activities per admin (paginated) |
+| GET    | `/api/admin/activities/entity/{entityType}`       | ✅   | ADMIN | ❌       | Activities per entity type |
+| GET    | `/api/admin/activities/action/{actionType}`       | ✅   | ADMIN | ❌       | Activities per action type |
+| POST   | `/api/admin/activities`                           | ✅   | ADMIN | ❌       | Log activity (full object) |
+| POST   | `/api/admin/activities/quick-log`                 | ✅   | ADMIN | ❌       | Quick log activity (simplified DTO) |
+| DELETE | `/api/admin/activities/{id}`                      | ✅   | ADMIN | ❌       | Delete activity |
+
+---
+
+### Store Settings (`/api/admin/settings`)
+
+| Method | Endpoint                   | Auth | Role  | Rate Limit | Notes / Response |
+|--------|----------------------------|------|-------|------------|------------------|
+| GET    | `/api/admin/settings`      | ✅   | ADMIN | ❌        | Get current store configuration (name, email, phone, address) |
+| PUT    | `/api/admin/settings`      | ✅   | ADMIN | ❌        | Update persisted store configuration |
+
+
+## Authentication & Security (`/api/auth`, JWT, Errors)
+
+### 1. Register User (`POST /api/auth/register`)
 - **Endpoint**: `POST /api/auth/register`
-- **Description**: Creates a new user account. If seller_account is true, also creates a seller profile.
+- **Description**: Creates a new user account. If `seller_account` is true, also creates a seller profile and returns a `seller_id`.
 - **Request Body**:
   ```json
   {
-    "email": "string (required)",
-    "password": "string (required, min 8 chars)",
-    "first_name": "string (optional)",
-    "last_name": "string (optional)",
-    "phone_num": "string (optional)",
-    "seller_account": "boolean (optional, default: false)"
+    "email": "user@example.com",
+    "password": "mypassword123",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone_num": "+1 (555) 123-4567",
+    "seller_account": true
   }
   ```
-- **Response**: 
+- **Validation Rules**:
+  - `email`: required, non-blank, normalized to lowercase, must not already exist.
+  - `password`: required, **minimum 8 characters**.
+  - `phone_num` (optional):
+    - All non-digits are stripped.
+    - If more than 10 digits, only the last 10 are used.
+    - If less than 10 digits after cleaning → `400 Bad Request` with:
+      ```json
+      { "error": "Phone number must contain at least 10 digits" }
+      ```
+- **Success Response** (200 OK):
   ```json
   {
     "message": "Account created successfully",
     "email": "user@example.com",
-    "token": "jwt_token_here",
-    "seller_id": 123 (if seller_account is true)
+    "access_token": "<JWT access token>",
+    "refresh_token": "<JWT refresh token>",
+    "role": "SELLER",
+    "seller_id": 123
   }
   ```
-- **Error Responses**: 
-  - `400 Bad Request`: "Email already exists"
-  - `400 Bad Request`: Error message on failure
+  - `role` is `"SELLER"` when `seller_account` is true, otherwise `"CUSTOMER"`.
+  - `seller_id` is only present when `seller_account` is true.
+- **Error Responses**:
+  - `400 Bad Request`:
+    - `{ "error": "Email is required" }`
+    - `{ "error": "Password must be at least 8 characters long" }`
+    - `{ "error": "Phone number must contain at least 10 digits" }`
+    - `{ "error": "Email already exists" }`
+  - `500 Internal Server Error`:
+    - `{ "error": "Internal server error" }`
 
 ---
 
-### 2. Login User
+### 2. Login User (`POST /api/auth/login`)
 - **Endpoint**: `POST /api/auth/login`
-- **Description**: Authenticates user and returns JWT token.
+- **Description**: Authenticates user and returns **access** and **refresh** JWT tokens plus role/seller flags.
 - **Request Body**:
   ```json
   {
-    "email": "string (required)",
-    "password": "string (required)"
+    "email": "user@example.com",
+    "password": "mypassword123"
   }
   ```
-- **Response**:
+- **Validation Rules**:
+  - Body must contain both `email` and `password`, otherwise:
+    ```json
+    { "error": "Email and password are required" }
+    ```
+    (`400 Bad Request`)
+  - Email must contain `@`, otherwise:
+    ```json
+    { "error": "Invalid email format" }
+    ```
+    (`400 Bad Request`)
+- **Success Response** (200 OK):
   ```json
   {
     "message": "Login successful",
-    "token": "jwt_token_here",
+    "access_token": "<JWT access token>",
+    "refresh_token": "<JWT refresh token>",
     "email": "user@example.com",
-    "seller_account": true/false
+    "role": "CUSTOMER",
+    "seller_account": false
   }
   ```
+  - `role` is taken from the account’s stored role if present, otherwise inferred:
+    - `"SELLER"` when `seller_account` is true, else `"CUSTOMER"`.
 - **Error Responses**:
-  - `400 Bad Request`: "Invalid credentials"
+  - `401 Unauthorized`:
+    ```json
+    { "error": "Invalid credentials" }
+    ```
+    (account not found or password mismatch)
+  - `401 Unauthorized`:
+    ```json
+    { "error": "Account is deactivated" }
+    ```
+  - `500 Internal Server Error`:
+    ```json
+    { "error": "Internal server error" }
+    ```
 
 ---
 
-### 3. Check Account
+### 3. Refresh Token (`POST /api/auth/refresh`)
+- **Endpoint**: `POST /api/auth/refresh`
+- **Description**: Exchanges a valid refresh token for a new access token and a rotated refresh token.
+- **Request Body**:
+  ```json
+  {
+    "refresh_token": "<refresh token>"
+  }
+  ```
+- **Success Response** (200 OK):
+  ```json
+  {
+    "access_token": "<new access token>",
+    "refresh_token": "<new refresh token>",
+    "email": "user@example.com",
+    "role": "CUSTOMER"
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`:
+    ```json
+    { "error": "Refresh token is required" }
+    ```
+  - `401 Unauthorized`:
+    ```json
+    { "error": "Refresh token not found" }
+    ```
+    or:
+    ```json
+    { "error": "Refresh token has expired" }
+    ```
+    or:
+    ```json
+    { "error": "Refresh token has been revoked" }
+    ```
+  - `401 Unauthorized`:
+    ```json
+    { "error": "Account is deactivated" }
+    ```
+  - `500 Internal Server Error`:
+    ```json
+    { "error": "Internal server error" }
+    ```
+
+---
+
+### 3a. Change Current User Password (`POST /api/auth/change-password`)
+- **Endpoint**: `POST /api/auth/change-password`
+- **Auth**: `Authorization: Bearer <access_token>` (any authenticated user)
+- **Description**: Changes the password of the **currently authenticated user** by verifying the existing password and applying the same password policy as registration.
+- **Request Headers**:
+  - `Authorization: Bearer <access_token>`
+- **Request Body**:
+  ```json
+  {
+    "currentPassword": "OldPass123!",
+    "newPassword": "NewStrongPass123!"
+  }
+  ```
+- **Validation Rules**:
+  - `currentPassword`: required; must match the user’s current stored password.
+  - `newPassword`: required; must be **at least 8 characters long** (same as registration policy).
+- **Success Response** (200 OK):
+  ```json
+  {
+    "message": "Password updated successfully"
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`:
+    - `{ "error": "currentPassword is required" }`
+    - `{ "error": "New password must be at least 8 characters long" }`
+  - `401 Unauthorized`:
+    - `{ "error": "Unauthorized" }` (missing/invalid token)
+  - `403 Forbidden`:
+    - `{ "error": "Current password is incorrect" }`
+  - `500 Internal Server Error`:
+    - `{ "error": "Internal server error" }`
+
+---
+
+### 4. Check Account (`GET /api/auth/check_account/{email}/{password}`)
 - **Endpoint**: `GET /api/auth/check_account/{email}/{password}`
 - **Description**: Verifies if account exists and password matches.
 - **Path Parameters**:
   - `email`: string (required)
   - `password`: string (required)
-- **Response (Valid)**:
+- **Response (Valid / match)** (200 OK):
   ```json
   {
     "password": true,
     "exists": true,
-    "is_seller": true/false
+    "is_seller": true,
+    "role": "SELLER"
   }
   ```
 - **Response (Not Found)**:
@@ -103,6 +424,99 @@ VictusStore is a lightweight, production-oriented e-commerce backend implemented
     "exists": true
   }
   ```
+- **Error Response**:
+  - `400 Bad Request`:
+    ```json
+    { "error": "<error message>" }
+    ```
+
+---
+
+### 5. JWT Tokens & Lifetimes
+- **Access Token**:
+  - Field name in responses: `access_token`.
+  - Lifetime: **15 minutes**.
+  - Claims:
+    - `sub`: user email.
+    - `role`: `"CUSTOMER" | "SELLER" | "ADMIN"`.
+- **Refresh Token**:
+  - Field name in responses: `refresh_token`.
+  - Lifetime: **7 days** (configurable via `app.refresh-token.expiration-days`, default 7).
+  - Contains claim: `"type": "refresh"`.
+- **Transport**:
+  - Sent by clients in header:
+    ```http
+    Authorization: Bearer <access_token>
+    ```
+  - There is **no cookie-based JWT transport**; no `Set-Cookie` for tokens and no server-side cookie reading for auth.
+
+---
+
+### 6. Authentication Expectations for Protected Endpoints
+- All non-public endpoints (everything except:
+  - `/api/auth/**`
+  - `/api/health`
+  - `/actuator/health`
+  - `GET /api/products/**`
+  - `GET /api/categories/**`
+  - `GET /api/variants/**`
+  - `GET /api/images/**`
+  ) require:
+  - `Authorization: Bearer <access_token>` header.
+- No cookies are required or checked for authentication.
+
+---
+
+### 7. Global Error Format & Common Codes
+- Many controllers (especially order/stock/idempotency) use a structured error envelope:
+  ```json
+  {
+    "error": {
+      "code": "SOME_CODE",
+      "message": "User friendly message",
+      "details": {
+        "field": "extra info"
+      },
+      "traceId": "abc123"
+    }
+  }
+  ```
+- Common `error.code` values:
+  - `INVALID_ARGUMENT` (400) – e.g. `"Cart not found"`, `"Cart is empty"`, `"Account not found"`.
+  - `VALIDATION_ERROR` (400) – DTO validation failures; `details` has `{ "field": "error message" }`.
+  - `CONSTRAINT_VIOLATION` (400) – constraint violations.
+  - `ACCESS_DENIED` (403) – missing permissions/roles.
+  - `INVALID_CREDENTIALS` (401) – Spring Security authentication failures.
+  - `STOCK_INSUFFICIENT` (400) – checkout stock problems, with `details.variant_id`, `details.available_stock`, `details.requested_quantity`.
+  - `IDEMPOTENCY_KEY_REUSE_MISMATCH` (409) – same `Idempotency-Key` reused with a different body.
+  - `INTERNAL_ERROR` (500) – unexpected errors.
+- **Rate limiting** uses a simpler envelope:
+  ```json
+  {
+    "error": {
+      "code": "RATE_LIMIT_EXCEEDED",
+      "message": "Too many login attempts. Please try again later."
+    }
+  }
+  ```
+  - Status: `429 Too Many Requests`.
+
+---
+
+### 8. CORS & Deployment Expectations
+- **Allowed Origins** (configurable in `application.properties`):
+  - `https://victusstore.store`
+  - `https://www.victusstore.store`
+  - `http://localhost:5173`
+  - `http://localhost:3000`
+- **Methods**: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`, `PATCH`.
+- **Headers**:
+  - Allowed: `*` (all).
+  - Exposed to frontend: `X-Trace-Id`.
+- **Credentials**:
+  - `allowCredentials=true` (CORS-level) but no auth cookies are used; JWTs are header-only.
+- **HTTPS**:
+  - App runs on HTTP (`:8080`) and is expected to be fronted by a reverse proxy (e.g. Nginx / load balancer) that terminates TLS.
 
 ---
 
@@ -1392,6 +1806,113 @@ VictusStore is a lightweight, production-oriented e-commerce backend implemented
   }
   ```
 - **Error Response**: `404 Not Found`: "Activity not found"
+
+---
+
+## Store Settings (`/api/admin/settings`) ⭐ **NEW**
+
+These endpoints persist and load store-wide information that is currently hardcoded in the frontend (e.g. `storeName`, `storeEmail`, `storePhone`, `storeAddress`).
+
+### 65. Get Store Settings
+- **Endpoint**: `GET /api/admin/settings`
+- **Auth**: `Authorization: Bearer <access_token>`
+- **Required Role**: `ADMIN`
+- **Description**: Returns the current store configuration used for display and contact information in the admin UI.
+- **Request Body**: _None_
+- **Headers**:
+  - `Authorization: Bearer <access_token>`
+- **Success Response** (200 OK):
+  ```json
+  {
+    "storeName": "Victus Roman Arena",
+    "storeEmail": "admin@victus.com",
+    "storePhone": "+1 (555) 123-4567",
+    "storeAddress": "123 Arena Street, Sports City, SC 12345",
+    "updatedAt": "2025-01-31T12:34:56Z",
+    "updatedBy": "admin@example.com"
+  }
+  ```
+  - `updatedAt` and `updatedBy` are for audit display; if not available, they may be `null`.
+- **Error Responses**:
+  - `401 Unauthorized` – missing/invalid token
+  - `403 Forbidden` – token valid but user is not an admin (enforced via Spring Security role)
+  - `500 Internal Server Error` – unexpected failure
+
+---
+
+### 66. Update Store Settings
+- **Endpoint**: `PUT /api/admin/settings`
+- **Auth**: `Authorization: Bearer <access_token>`
+- **Required Role**: `ADMIN`
+- **Description**: Saves the settings edited in the admin UI (e.g. from an `AdminSettings` page “Save Settings” button).
+- **Request Body**:
+  ```json
+  {
+    "storeName": "Victus Roman Arena",
+    "storeEmail": "admin@victus.com",
+    "storePhone": "+1 (555) 123-4567",
+    "storeAddress": "123 Arena Street, Sports City, SC 12345"
+  }
+  ```
+- **Field Rules**:
+  - `storeName`: string, **required**, non-blank
+  - `storeEmail`: string, **required**, must be a valid email (basic `@` and `.` check)
+  - `storePhone`: string, optional but recommended
+  - `storeAddress`: string, optional but recommended
+- **Success Response** (200 OK):
+  ```json
+  {
+    "storeName": "Victus Roman Arena",
+    "storeEmail": "admin@victus.com",
+    "storePhone": "+1 (555) 123-4567",
+    "storeAddress": "123 Arena Street, Sports City, SC 12345",
+    "updatedAt": "2025-01-31T12:35:10Z",
+    "updatedBy": "admin@example.com"
+  }
+  ```
+- **Validation Errors** – `400 Bad Request`:
+  - Example payloads:
+    - `{ "error": "storeName is required" }`
+    - `{ "error": "storeEmail is required" }`
+    - `{ "error": "storeEmail is invalid" }`
+- **Other Errors**:
+  - `401 Unauthorized` – missing/invalid token
+  - `403 Forbidden` – not an admin
+  - `500 Internal Server Error`
+
+---
+
+## Admin Product Stock Summary (`/api/admin/products/stock-summary`) ⭐ **NEW**
+
+### 67. Get Stock Summary for All Products
+- **Endpoint**: `GET /api/admin/products/stock-summary`
+- **Auth**: `Authorization: Bearer <access_token>`
+- **Required Role**: `ADMIN`
+- **Description**: Returns total stock per product and whether each product is considered “low stock”, for use in admin dashboards (e.g. the “Stock” column in `AdminProducts`).
+- **Request Body**: _None_
+- **Query Parameters**: _None_ (the frontend can filter client-side; optional future support for `?productIds=1,2,3`).
+- **Success Response** (200 OK):
+  ```json
+  [
+    {
+      "productId": 1,
+      "totalStock": 120,
+      "lowStock": false
+    },
+    {
+      "productId": 2,
+      "totalStock": 5,
+      "lowStock": true
+    }
+  ]
+  ```
+- **Notes**:
+  - `totalStock` is computed as `SUM(stockQuantity)` over all variants per product.
+  - `lowStock` is `true` when `totalStock` is **less than 10** (threshold is configurable in code).
+- **Error Responses**:
+  - `401 Unauthorized` – missing/invalid token
+  - `403 Forbidden` – not an admin
+  - `500 Internal Server Error`
 
 ---
 

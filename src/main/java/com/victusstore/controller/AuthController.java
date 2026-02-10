@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
@@ -260,6 +262,44 @@ public class AuthController {
             }
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> body) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || authentication.getName() == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+            }
+
+            String email = authentication.getName();
+            String currentPassword = body.get("currentPassword");
+            String newPassword = body.get("newPassword");
+
+            if (currentPassword == null || currentPassword.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "currentPassword is required"));
+            }
+            if (newPassword == null || newPassword.length() < 8) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "New password must be at least 8 characters long"));
+            }
+
+            Account account = accountRepository.findByEmail(email).orElse(null);
+            if (account == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+            }
+            if (!passwordEncoder.matches(currentPassword, account.getPassword())) {
+                // Treat incorrect current password as forbidden as per spec
+                return ResponseEntity.status(403).body(Map.of("error", "Current password is incorrect"));
+            }
+
+            account.setPassword(passwordEncoder.encode(newPassword));
+            accountRepository.save(account);
+
+            return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
 }

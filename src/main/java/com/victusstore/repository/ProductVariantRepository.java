@@ -13,8 +13,12 @@ import java.util.Optional;
 @Repository
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
     List<ProductVariant> findByProductId(Long productId);
-    
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT v FROM ProductVariant v WHERE v.variantId = :id")
     Optional<ProductVariant> findByIdWithLock(@Param("id") Long id);
+
+    @Query("SELECT v.productId AS productId, SUM(v.stockQuantity) AS totalStock " +
+           "FROM ProductVariant v GROUP BY v.productId")
+    List<Object[]> findTotalStockPerProduct();
 }
