@@ -54,7 +54,7 @@ public class ProductVariant {
     @JsonIgnore
     private List<Image> images;
 
-    @OneToMany(mappedBy = "variant")
+    @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<CartProduct> cartProducts;
 
