@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -57,13 +58,23 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Boolean>> deleteProduct(@PathVariable Long id) {
         return productRepository.findById(id)
                 .map(product -> {
-                    productRepository.delete(product);
-                    Map<String, Boolean> response = new HashMap<>();
-                    response.put("deleted", Boolean.TRUE);
-                    return ResponseEntity.ok(response);
+                    try {
+                        productRepository.delete(product);
+                        Map<String, Boolean> response = new HashMap<>();
+                        response.put("deleted", Boolean.TRUE);
+                        return ResponseEntity.ok(response);
+                    } catch (Exception e) {
+                        // Handle foreign key constraint violations
+                        e.printStackTrace();
+                        Map<String, Boolean> response = new HashMap<>();
+                        response.put("deleted", Boolean.FALSE);
+                        response.put("error", true);
+                        return ResponseEntity.badRequest().body(response);
+                    }
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
