@@ -60,23 +60,22 @@ public class ProductController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Boolean>> deleteProduct(@PathVariable Long id) {
-        return productRepository.findById(id)
-                .map(product -> {
-                    try {
-                        productRepository.delete(product);
-                        Map<String, Boolean> response = new HashMap<>();
-                        response.put("deleted", Boolean.TRUE);
-                        return ResponseEntity.ok(response);
-                    } catch (Exception e) {
-                        // Handle foreign key constraint violations
-                        e.printStackTrace();
-                        Map<String, Boolean> response = new HashMap<>();
-                        response.put("deleted", Boolean.FALSE);
-                        response.put("error", true);
-                        return ResponseEntity.badRequest().body(response);
-                    }
-                })
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            if (!productRepository.existsById(id)) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            productRepository.deleteById(id);
+            Map<String, Boolean> response = new HashMap<>();
+            response.put("deleted", Boolean.TRUE);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Boolean> response = new HashMap<>();
+            response.put("deleted", Boolean.FALSE);
+            response.put("error", true);
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 
     @GetMapping("/category/{categoryId}")
