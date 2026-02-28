@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/actuator/health").permitAll()   // health only is public
+                .requestMatchers("/robots.txt", "/sitemap.xml", "/sitemaps/**").permitAll()
                 // Public read-only catalogue endpoints for guests
                 .requestMatchers(HttpMethod.GET,
                         "/api/products/**",
