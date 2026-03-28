@@ -315,16 +315,38 @@ public class CartProductController {
                 ));
             }
 
-            // Find and update cart product(s)
-            List<CartProduct> cartProducts = cartProductRepository.findAllByCartIdAndVariantId(cartId, variantId);
-            if (cartProducts == null || cartProducts.isEmpty()) {
-                throw new RuntimeException("Cart product not found");
+            Product product = variant.getProduct();
+            java.math.BigDecimal priceAtTime = java.math.BigDecimal.ZERO;
+            if (product != null && product.getBasePrice() != null && variant.getPrice() != null) {
+                priceAtTime = product.getBasePrice().add(variant.getPrice());
+            } else if (variant.getPrice() != null) {
+                priceAtTime = variant.getPrice();
             }
 
-            CartProduct primary = cartProducts.get(0);
-            Integer oldQuantity = primary.getQuantity();
-            primary.setQuantity(quantity);
-            cartProductRepository.save(primary);
+            // Find and update cart product(s). If the item exists only in local cart,
+            // create the backend row instead of failing the quantity update.
+            List<CartProduct> cartProducts = cartProductRepository.findAllByCartIdAndVariantId(cartId, variantId);
+            CartProduct primary;
+            Integer oldQuantity;
+            boolean createdMissingItem = false;
+
+            if (cartProducts == null || cartProducts.isEmpty()) {
+                primary = new CartProduct();
+                primary.setCartId(cartId);
+                primary.setVariantId(variantId);
+                primary.setQuantity(quantity);
+                primary.setPriceAtTime(priceAtTime);
+                primary = cartProductRepository.save(primary);
+                oldQuantity = 0;
+                createdMissingItem = true;
+                cartProducts = List.of(primary);
+            } else {
+                primary = cartProducts.get(0);
+                oldQuantity = primary.getQuantity();
+                primary.setQuantity(quantity);
+                primary.setPriceAtTime(priceAtTime);
+                cartProductRepository.save(primary);
+            }
 
             // Cleanup duplicates if any
             if (cartProducts.size() > 1) {
@@ -334,12 +356,12 @@ public class CartProductController {
             }
 
             // Return detailed response
-            Product product = variant.getProduct();
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Product quantity updated successfully");
+            response.put("message", createdMissingItem ? "Product added to cart successfully" : "Product quantity updated successfully");
             response.put("old_quantity", oldQuantity);
             response.put("new_quantity", quantity);
+            response.put("created_missing_item", createdMissingItem);
             response.put("product_name", product != null ? product.getProductName() : "Unknown");
             response.put("variant_details", Map.of(
                 "color", variant.getColor(),
