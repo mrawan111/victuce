@@ -1,7 +1,10 @@
 package com.victusstore.controller;
 
+import com.victusstore.dto.StoreSettingsRequest;
+import com.victusstore.dto.StoreSettingsResponse;
 import com.victusstore.model.StoreSettings;
 import com.victusstore.repository.StoreSettingsRepository;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -13,8 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/settings")
@@ -24,78 +25,72 @@ public class AdminSettingsController {
     private StoreSettingsRepository storeSettingsRepository;
 
     @GetMapping
-    public ResponseEntity<?> getStoreSettings() {
+    public ResponseEntity<StoreSettingsResponse> getStoreSettings() {
         StoreSettings settings = storeSettingsRepository.findTopByOrderByIdAsc()
                 .orElse(null);
 
         if (settings == null) {
-            // No settings saved yet – return empty/default payload
-            Map<String, Object> response = new HashMap<>();
-            response.put("storeName", null);
-            response.put("storeEmail", null);
-            response.put("storePhone", null);
-            response.put("storeAddress", null);
-            response.put("updatedAt", null);
-            response.put("updatedBy", null);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(new StoreSettingsResponse(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            ));
         }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("storeName", settings.getStoreName());
-        response.put("storeEmail", settings.getStoreEmail());
-        response.put("storePhone", settings.getStorePhone());
-        response.put("storeAddress", settings.getStoreAddress());
-        response.put("updatedAt", settings.getUpdatedAt());
-        response.put("updatedBy", settings.getUpdatedBy());
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(toResponse(settings));
     }
 
     @PutMapping
-    public ResponseEntity<?> updateStoreSettings(@RequestBody Map<String, Object> body) {
-        try {
-            String storeName = body.get("storeName") != null ? body.get("storeName").toString().trim() : null;
-            String storeEmail = body.get("storeEmail") != null ? body.get("storeEmail").toString().trim() : null;
-            String storePhone = body.get("storePhone") != null ? body.get("storePhone").toString().trim() : null;
-            String storeAddress = body.get("storeAddress") != null ? body.get("storeAddress").toString().trim() : null;
+    public ResponseEntity<StoreSettingsResponse> updateStoreSettings(
+            @Valid @RequestBody StoreSettingsRequest body) {
+        StoreSettings settings = storeSettingsRepository.findTopByOrderByIdAsc()
+                .orElseGet(StoreSettings::new);
 
-            if (storeName == null || storeName.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "storeName is required"));
-            }
-            if (storeEmail == null || storeEmail.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "storeEmail is required"));
-            }
-            if (!storeEmail.contains("@") || !storeEmail.contains(".")) {
-                return ResponseEntity.badRequest().body(Map.of("error", "storeEmail is invalid"));
-            }
+        settings.setStoreName(body.storeName().trim());
+        settings.setStoreEmail(body.storeEmail().trim());
+        settings.setStorePhone(normalizeNullable(body.storePhone()));
+        settings.setStoreAddress(normalizeNullable(body.storeAddress()));
+        settings.setUpdatedAt(LocalDateTime.now());
+        settings.setUpdatedBy(resolveUpdatedBy());
 
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String updatedBy = auth != null ? auth.getName() : null;
+        StoreSettings saved = storeSettingsRepository.save(settings);
+        return ResponseEntity.ok(toResponse(saved));
+    }
 
-            StoreSettings settings = storeSettingsRepository.findTopByOrderByIdAsc()
-                    .orElseGet(StoreSettings::new);
+    private StoreSettingsResponse toResponse(StoreSettings settings) {
+        return new StoreSettingsResponse(
+                settings.getStoreName(),
+                settings.getStoreEmail(),
+                settings.getStorePhone(),
+                settings.getStoreAddress(),
+                settings.getUpdatedAt(),
+                settings.getUpdatedBy()
+        );
+    }
 
-            settings.setStoreName(storeName);
-            settings.setStoreEmail(storeEmail);
-            settings.setStorePhone(storePhone);
-            settings.setStoreAddress(storeAddress);
-            settings.setUpdatedAt(LocalDateTime.now());
-            settings.setUpdatedBy(updatedBy);
-
-            StoreSettings saved = storeSettingsRepository.save(settings);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("storeName", saved.getStoreName());
-            response.put("storeEmail", saved.getStoreEmail());
-            response.put("storePhone", saved.getStorePhone());
-            response.put("storeAddress", saved.getStoreAddress());
-            response.put("updatedAt", saved.getUpdatedAt());
-            response.put("updatedBy", saved.getUpdatedBy());
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
+    private String normalizeNullable(String value) {
+        if (value == null) {
+            return null;
         }
+
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String resolveUpdatedBy() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+
+        String name = auth.getName();
+        if (name == null || name.isBlank() || "anonymousUser".equalsIgnoreCase(name)) {
+            return null;
+        }
+
+        return name;
     }
 }
-

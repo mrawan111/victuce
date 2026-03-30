@@ -30,6 +30,17 @@ CREATE TABLE IF NOT EXISTS admin_activities (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Store Settings Table
+CREATE TABLE IF NOT EXISTS store_settings (
+    id SERIAL PRIMARY KEY,
+    store_name VARCHAR(255) NOT NULL,
+    store_email VARCHAR(255) NOT NULL,
+    store_phone VARCHAR(50),
+    store_address VARCHAR(500),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(255)
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS IX_Coupons_Code ON coupons(coupon_code);
 CREATE INDEX IF NOT EXISTS IX_Coupons_Active ON coupons(is_active);
@@ -38,6 +49,7 @@ CREATE INDEX IF NOT EXISTS IX_AdminActivities_AdminEmail ON admin_activities(adm
 CREATE INDEX IF NOT EXISTS IX_AdminActivities_EntityType ON admin_activities(entity_type);
 CREATE INDEX IF NOT EXISTS IX_AdminActivities_ActionType ON admin_activities(action_type);
 CREATE INDEX IF NOT EXISTS IX_AdminActivities_CreatedAt ON admin_activities(created_at);
+CREATE INDEX IF NOT EXISTS IX_StoreSettings_UpdatedAt ON store_settings(updated_at);
 
 -- Create trigger for updating coupons updated_at
 CREATE OR REPLACE FUNCTION update_coupons_modtime()

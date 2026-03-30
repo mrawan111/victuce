@@ -153,6 +153,17 @@ CREATE TABLE Shipping_Tracking (
     FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE
 );
 
+-- Create Store Settings Table
+CREATE TABLE Store_Settings (
+    id SERIAL PRIMARY KEY,
+    store_name VARCHAR(255) NOT NULL,
+    store_email VARCHAR(255) NOT NULL,
+    store_phone VARCHAR(50),
+    store_address VARCHAR(500),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(255)
+);
+
 -- Create indexes
 CREATE INDEX IX_Products_CategoryId ON Products(category_id);
 CREATE INDEX IX_Products_SellerId ON Products(seller_id);
@@ -162,6 +173,7 @@ CREATE INDEX IX_CartProducts_CartId ON Cart_Products(cart_id);
 CREATE INDEX IX_Orders_Email ON Orders(email);
 CREATE INDEX IX_Reviews_ProductId ON Reviews(product_id);
 CREATE INDEX IX_Images_ProductId ON Images(product_id);
+CREATE INDEX IX_StoreSettings_UpdatedAt ON Store_Settings(updated_at);
 
 -- Create trigger functions and triggers for updating timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()

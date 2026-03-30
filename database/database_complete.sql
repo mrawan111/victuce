@@ -166,6 +166,18 @@ CREATE TABLE IF NOT EXISTS public.sellers
     CONSTRAINT sellers_pkey PRIMARY KEY (seller_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.store_settings
+(
+    id bigserial NOT NULL,
+    store_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    store_email character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    store_phone character varying(50) COLLATE pg_catalog."default",
+    store_address character varying(500) COLLATE pg_catalog."default",
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_by character varying(255) COLLATE pg_catalog."default",
+    CONSTRAINT store_settings_pkey PRIMARY KEY (id)
+);
+
 CREATE TABLE IF NOT EXISTS public.shipping_tracking
 (
     tracking_id serial NOT NULL,
@@ -292,6 +304,9 @@ ALTER TABLE IF EXISTS public.sellers
     REFERENCES public.accounts (email) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS ix_storesettings_updatedat
+    ON public.store_settings(updated_at);
 
 
 ALTER TABLE IF EXISTS public.shipping_tracking
