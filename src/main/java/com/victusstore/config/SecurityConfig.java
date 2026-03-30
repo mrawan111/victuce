@@ -46,6 +46,7 @@ public class SecurityConfig {
                 .requestMatchers("/robots.txt", "/sitemap.xml", "/sitemaps/**").permitAll()
                 // Public read-only catalogue endpoints for guests
                 .requestMatchers(HttpMethod.GET,
+                        "/api/settings",
                         "/api/products/**",
                         "/api/categories/**",
                         "/api/variants/**",
