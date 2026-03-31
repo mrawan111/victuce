@@ -50,6 +50,8 @@ public class ProductController {
                     if (productDetails.getProductName() != null) product.setProductName(productDetails.getProductName());
                     if (productDetails.getDescription() != null) product.setDescription(productDetails.getDescription());
                     if (productDetails.getBasePrice() != null) product.setBasePrice(productDetails.getBasePrice());
+                    if (productDetails.getCategoryId() != null) product.setCategoryId(productDetails.getCategoryId());
+                    if (productDetails.getSellerId() != null) product.setSellerId(productDetails.getSellerId());
                     if (productDetails.getIsActive() != null) product.setIsActive(productDetails.getIsActive());
                     Product updatedProduct = productRepository.save(product);
                     return ResponseEntity.ok(updatedProduct);
