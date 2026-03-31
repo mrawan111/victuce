@@ -31,6 +31,24 @@ public class CartProductController {
     @Autowired
     private ProductVariantRepository variantRepository;
 
+    /**
+     * In this project, variant.price is the final sell price for that option.
+     * It should not be added on top of product.basePrice.
+     */
+    private java.math.BigDecimal resolvePriceAtTime(ProductVariant variant, Product product) {
+        try {
+            if (variant != null && variant.getPrice() != null) {
+                return variant.getPrice();
+            }
+            if (product != null && product.getBasePrice() != null) {
+                return product.getBasePrice();
+            }
+        } catch (Exception e) {
+            logger.error("Could not resolve priceAtTime: {}", e.getMessage());
+        }
+        return java.math.BigDecimal.ZERO;
+    }
+
     @GetMapping
     public ResponseEntity<List<CartProduct>> getAllCartProducts() {
         return ResponseEntity.ok(cartProductRepository.findAll());
@@ -164,20 +182,7 @@ public class CartProductController {
                 ));
             }
 
-            // Calculate priceAtTime as base price + variant price
-            java.math.BigDecimal priceAtTime = java.math.BigDecimal.ZERO;
-            try {
-                if (product != null && product.getBasePrice() != null && variant.getPrice() != null) {
-                    priceAtTime = product.getBasePrice().add(variant.getPrice());
-                } else if (variant.getPrice() != null) {
-                    priceAtTime = variant.getPrice();
-                }
-            } catch (Exception e) {
-                logger.error("Could not calculate price: {}", e.getMessage());
-                if (variant.getPrice() != null) {
-                    priceAtTime = variant.getPrice();
-                }
-            }
+            java.math.BigDecimal priceAtTime = resolvePriceAtTime(variant, product);
 
             // Upsert cart item (prevent duplicates for same cart + variant)
             Long cartProductId;
@@ -316,12 +321,7 @@ public class CartProductController {
             }
 
             Product product = variant.getProduct();
-            java.math.BigDecimal priceAtTime = java.math.BigDecimal.ZERO;
-            if (product != null && product.getBasePrice() != null && variant.getPrice() != null) {
-                priceAtTime = product.getBasePrice().add(variant.getPrice());
-            } else if (variant.getPrice() != null) {
-                priceAtTime = variant.getPrice();
-            }
+            java.math.BigDecimal priceAtTime = resolvePriceAtTime(variant, product);
 
             // Find and update cart product(s). If the item exists only in local cart,
             // create the backend row instead of failing the quantity update.
