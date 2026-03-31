@@ -10,15 +10,15 @@ import java.util.List;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByAccount_Email(String email);
 
-    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product WHERE o.orderId = ?1")
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product p LEFT JOIN FETCH p.seller WHERE o.orderId = ?1")
     Order findOrderWithItems(Long orderId);
 
-    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product")
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product p LEFT JOIN FETCH p.seller")
     List<Order> findAllOrdersWithItems();
 
-    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product WHERE o.account.email = ?1")
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product p LEFT JOIN FETCH p.seller WHERE o.account.email = ?1")
     List<Order> findOrdersByEmailWithItems(String email);
 
-    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product WHERE o.orderId = ?1")
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.variant v LEFT JOIN FETCH v.product p LEFT JOIN FETCH p.seller WHERE o.orderId = ?1")
     Order findByIdWithItems(Long id);
 }

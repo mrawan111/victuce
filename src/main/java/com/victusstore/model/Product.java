@@ -54,7 +54,6 @@ public class Product {
 
     @ManyToOne
     @JoinColumn(name = "seller_id", insertable = false, updatable = false)
-    @JsonIgnore
     private Seller seller;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
