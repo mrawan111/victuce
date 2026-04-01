@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -44,9 +46,13 @@ public class CartController {
 
     @GetMapping("/user/{email}")
     public ResponseEntity<Cart> getCartByEmail(@PathVariable String email) {
-        return cartRepository.findByAccount_Email(email)
-                .map(cart -> ResponseEntity.ok(cart))
-                .orElse(ResponseEntity.notFound().build());
+        List<Cart> carts = cartRepository.findAllByAccount_Email(email);
+        if (carts == null || carts.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Cart cart = resolvePrimaryCart(carts);
+        return ResponseEntity.ok(cart);
     }
 
     @PostMapping
@@ -103,11 +109,12 @@ public class CartController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Account with email " + email + " does not exist"));
             }
 
-            // Get or create cart for user
-            Optional<Cart> cartOpt = cartRepository.findByAccount_Email(email);
+            // Get or create a canonical cart for the user. If duplicates already exist
+            // in the database, merge them instead of failing with a non-unique result.
+            List<Cart> carts = cartRepository.findAllByAccount_Email(email);
             Cart cart;
-            if (cartOpt.isPresent()) {
-                cart = cartOpt.get();
+            if (carts != null && !carts.isEmpty()) {
+                cart = mergeDuplicateCarts(carts);
             } else {
                 cart = new Cart();
                 cart.setEmail(email);
@@ -172,5 +179,66 @@ public class CartController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private Cart resolvePrimaryCart(List<Cart> carts) {
+        return carts.stream()
+                .sorted(
+                        Comparator
+                                .comparing((Cart cart) -> Boolean.TRUE.equals(cart.getIsActive()) ? 0 : 1)
+                                .thenComparing(
+                                        Cart::getUpdatedAt,
+                                        Comparator.nullsLast(Comparator.reverseOrder())
+                                )
+                                .thenComparing(
+                                        Cart::getCreatedAt,
+                                        Comparator.nullsLast(Comparator.reverseOrder())
+                                )
+                                .thenComparing(
+                                        Cart::getCartId,
+                                        Comparator.nullsLast(Comparator.reverseOrder())
+                                )
+                )
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No cart found"));
+    }
+
+    private Cart mergeDuplicateCarts(List<Cart> carts) {
+        Cart primaryCart = resolvePrimaryCart(carts);
+        Map<Long, CartProduct> mergedByVariant = new LinkedHashMap<>();
+
+        for (Cart currentCart : carts) {
+            List<CartProduct> items = cartProductRepository.findByCartId(currentCart.getCartId());
+            for (CartProduct item : items) {
+                CartProduct existing = mergedByVariant.get(item.getVariantId());
+                if (existing == null) {
+                    item.setCartId(primaryCart.getCartId());
+                    mergedByVariant.put(item.getVariantId(), item);
+                    continue;
+                }
+
+                existing.setQuantity(existing.getQuantity() + item.getQuantity());
+                if (item.getPriceAtTime() != null) {
+                    existing.setPriceAtTime(item.getPriceAtTime());
+                }
+                cartProductRepository.deleteById(item.getId());
+            }
+
+            if (!primaryCart.getCartId().equals(currentCart.getCartId())) {
+                currentCart.setIsActive(false);
+                currentCart.setTotalPrice(BigDecimal.ZERO);
+                cartRepository.save(currentCart);
+            }
+        }
+
+        for (CartProduct mergedItem : mergedByVariant.values()) {
+            if (!primaryCart.getCartId().equals(mergedItem.getCartId())) {
+                mergedItem.setCartId(primaryCart.getCartId());
+            }
+            cartProductRepository.save(mergedItem);
+        }
+
+        primaryCart.setIsActive(true);
+        return cartRepository.save(primaryCart);
     }
 }
