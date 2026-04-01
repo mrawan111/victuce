@@ -30,7 +30,7 @@ public class ContactEmailService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Value("${app.resend.api-key:re_xxxxxxxxx}")
+    @Value("${app.resend.api-key:re_WWAajV9V_9dUHS2ggT2ANV6gqJyFQ5GjT}")
     private String resendApiKey;
 
     @Value("${app.resend.from-email:onboarding@resend.dev}")
