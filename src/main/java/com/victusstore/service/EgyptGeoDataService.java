@@ -14,8 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -80,9 +78,6 @@ public class EgyptGeoDataService {
     private List<City> fetchAndStoreCities(List<Region> regions) throws IOException {
         log.info("Fetching cities for all regions...");
         
-        Map<String, Region> regionMap = regions.stream()
-                .collect(Collectors.toMap(Region::getRegionCode, region -> region));
-        
         List<City> allCities = new ArrayList<>();
         
         for (Region region : regions) {
@@ -102,7 +97,6 @@ public class EgyptGeoDataService {
                     City city = new City();
                     city.setName(apiCity.getName());
                     city.setRegionCode(region.getRegionCode());
-                    city.setRegion(regionMap.get(region.getRegionCode()));
                     
                     citiesForRegion.add(city);
                 }

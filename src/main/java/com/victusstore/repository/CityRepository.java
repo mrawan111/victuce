@@ -48,4 +48,9 @@ public interface CityRepository extends JpaRepository<City, Integer> {
      */
     @Query("SELECT COUNT(c) FROM City c WHERE c.regionCode = :regionCode")
     long countByRegionCode(@Param("regionCode") String regionCode);
+
+    /**
+     * Delete all cities for a given region code
+     */
+    void deleteByRegionCode(String regionCode);
 }
