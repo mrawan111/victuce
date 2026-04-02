@@ -1,15 +1,15 @@
 package com.victus.egyptregions.dao;
 
 import com.victus.egyptregions.model.City;
-import com.victus.egyptregions.util.DatabaseUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,8 +18,16 @@ import java.util.logging.Logger;
  * Data Access Object for City operations
  * Handles all database operations related to cities
  */
+@Repository
 public class CityDAO {
     private static final Logger logger = Logger.getLogger(CityDAO.class.getName());
+
+    private final DataSource dataSource;
+
+    @Autowired
+    public CityDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
     
     // SQL queries
     private static final String GET_CITIES_BY_REGION = 
@@ -46,7 +54,7 @@ public class CityDAO {
         List<City> cities = new ArrayList<>();
         String sql = GET_CITIES_BY_REGION;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, regionCode);
@@ -76,7 +84,7 @@ public class CityDAO {
         String sql = GET_CITY_BY_ID;
         City city = null;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, id);
@@ -109,7 +117,7 @@ public class CityDAO {
         
         String sql = INSERT_CITY;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, city.getName());
@@ -138,7 +146,7 @@ public class CityDAO {
     public boolean updateCity(City city) {
         String sql = UPDATE_CITY;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, city.getName());
@@ -168,7 +176,7 @@ public class CityDAO {
     public boolean deleteCity(int id) {
         String sql = DELETE_CITY;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, id);
@@ -196,7 +204,7 @@ public class CityDAO {
         String sql = GET_OTHER_CITY_BY_REGION;
         City city = null;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, regionCode);
@@ -223,7 +231,7 @@ public class CityDAO {
     public boolean cityExists(String cityName, String regionCode) {
         String sql = CHECK_CITY_EXISTS;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, cityName);

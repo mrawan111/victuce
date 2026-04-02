@@ -1,8 +1,10 @@
 package com.victus.egyptregions.dao;
 
 import com.victus.egyptregions.model.Region;
-import com.victus.egyptregions.util.DatabaseUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,8 +18,16 @@ import java.util.logging.Logger;
  * Data Access Object for Region operations
  * Handles all database operations related to regions
  */
+@Repository
 public class RegionDAO {
     private static final Logger logger = Logger.getLogger(RegionDAO.class.getName());
+
+    private final DataSource dataSource;
+
+    @Autowired
+    public RegionDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
     
     // SQL queries
     private static final String GET_ALL_REGIONS = "SELECT id, name, region_code FROM regions ORDER BY name";
@@ -35,7 +45,7 @@ public class RegionDAO {
         List<Region> regions = new ArrayList<>();
         String sql = GET_ALL_REGIONS;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             
@@ -62,7 +72,7 @@ public class RegionDAO {
         String sql = GET_REGION_BY_CODE;
         Region region = null;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, regionCode);
@@ -90,7 +100,7 @@ public class RegionDAO {
         String sql = GET_REGION_BY_ID;
         Region region = null;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, id);
@@ -117,7 +127,7 @@ public class RegionDAO {
     public boolean insertRegion(Region region) {
         String sql = INSERT_REGION;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, region.getName());
@@ -145,7 +155,7 @@ public class RegionDAO {
     public boolean updateRegion(Region region) {
         String sql = UPDATE_REGION;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, region.getName());
@@ -174,7 +184,7 @@ public class RegionDAO {
     public boolean deleteRegion(int id) {
         String sql = DELETE_REGION;
         
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, id);

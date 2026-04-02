@@ -2,259 +2,85 @@ package com.victus.egyptregions.servlet;
 
 import com.victus.egyptregions.dao.CityDAO;
 import com.victus.egyptregions.model.City;
-import com.google.gson.Gson;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Servlet for handling city-related requests
- * Provides REST API endpoints for city operations
- */
-@WebServlet(name = "CityServlet", urlPatterns = {"/api/cities", "/api/cities/*"})
-public class CityServlet extends HttpServlet {
+@RestController
+@RequestMapping("/api/cities")
+public class CityServlet {
+
     private static final Logger logger = Logger.getLogger(CityServlet.class.getName());
-    private CityDAO cityDAO;
-    private Gson gson;
-    
-    @Override
-    public void init() throws ServletException {
-        super.init();
-        cityDAO = new CityDAO();
-        gson = new Gson();
-        logger.info("CityServlet initialized");
+
+    private final CityDAO cityDAO;
+
+    @Autowired
+    public CityServlet(CityDAO cityDAO) {
+        this.cityDAO = cityDAO;
     }
-    
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
-        
-        String pathInfo = request.getPathInfo();
-        String regionCode = request.getParameter("regionCode");
-        logger.info("GET request to CityServlet with path: " + pathInfo + ", regionCode: " + regionCode);
-        
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        
-        try {
-            if (pathInfo == null || pathInfo.equals("/")) {
-                // GET /api/cities?regionCode={code} - Get cities by region code
-                if (regionCode != null && !regionCode.isEmpty()) {
-                    handleGetCitiesByRegion(regionCode, response);
-                } else {
-                    sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, 
-                                     "regionCode parameter is required");
-                }
-            } else {
-                // GET /api/cities/{id} - Get city by ID
-                try {
-                    int cityId = Integer.parseInt(pathInfo.substring(1)); // Remove leading slash
-                    handleGetCityById(cityId, response);
-                } catch (NumberFormatException e) {
-                    sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, 
-                                     "Invalid city ID format");
-                }
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error handling GET request", e);
-            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, 
-                             "Internal server error");
+
+    /** GET /api/cities?regionCode={code} — return cities for a region */
+    @GetMapping
+    public ResponseEntity<?> getCitiesByRegion(@RequestParam(required = false) String regionCode) {
+        if (regionCode == null || regionCode.isEmpty()) {
+            return ResponseEntity.badRequest().body("{\"error\": \"regionCode parameter is required\"}");
         }
-    }
-    
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
-        
-        logger.info("POST request to CityServlet");
-        
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        
-        try {
-            // Parse city data from request
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = request.getReader().readLine()) != null) {
-                sb.append(line);
-            }
-            
-            City city = gson.fromJson(sb.toString(), City.class);
-            
-            if (city == null || city.getName() == null || city.getRegionCode() == null) {
-                sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, 
-                                 "Invalid city data");
-                return;
-            }
-            
-            // Insert new city
-            if (cityDAO.insertCity(city)) {
-                response.setStatus(HttpServletResponse.SC_CREATED);
-                sendJsonResponse(response, gson.toJson(city));
-                logger.info("Successfully created city: " + city);
-            } else {
-                sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, 
-                                 "Failed to create city or city already exists");
-            }
-            
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error handling POST request", e);
-            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, 
-                             "Internal server error");
-        }
-    }
-    
-    @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
-        
-        logger.info("PUT request to CityServlet");
-        
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        
-        try {
-            // Parse city data from request
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = request.getReader().readLine()) != null) {
-                sb.append(line);
-            }
-            
-            City city = gson.fromJson(sb.toString(), City.class);
-            
-            if (city == null || city.getId() <= 0 || city.getName() == null || city.getRegionCode() == null) {
-                sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, 
-                                 "Invalid city data or missing ID");
-                return;
-            }
-            
-            // Update existing city
-            if (cityDAO.updateCity(city)) {
-                sendJsonResponse(response, gson.toJson(city));
-                logger.info("Successfully updated city: " + city);
-            } else {
-                sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, 
-                                 "Failed to update city");
-            }
-            
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error handling PUT request", e);
-            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, 
-                             "Internal server error");
-        }
-    }
-    
-    @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException {
-        
-        String pathInfo = request.getPathInfo();
-        logger.info("DELETE request to CityServlet with path: " + pathInfo);
-        
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        
-        try {
-            if (pathInfo == null || pathInfo.equals("/")) {
-                sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, 
-                                 "City ID is required for deletion");
-                return;
-            }
-            
-            try {
-                int cityId = Integer.parseInt(pathInfo.substring(1)); // Remove leading slash
-                
-                if (cityDAO.deleteCity(cityId)) {
-                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-                    logger.info("Successfully deleted city with ID: " + cityId);
-                } else {
-                    sendErrorResponse(response, HttpServletResponse.SC_NOT_FOUND, 
-                                     "City not found or failed to delete");
-                }
-                
-            } catch (NumberFormatException e) {
-                sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, 
-                                 "Invalid city ID format");
-            }
-            
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error handling DELETE request", e);
-            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, 
-                             "Internal server error");
-        }
-    }
-    
-    /**
-     * Handle GET /api/cities?regionCode={code} - Return cities by region
-     */
-    private void handleGetCitiesByRegion(String regionCode, HttpServletResponse response) 
-            throws IOException {
-        
         List<City> cities = cityDAO.getCitiesByRegion(regionCode);
-        
-        if (cities.isEmpty()) {
-            logger.warning("No cities found for region: " + regionCode);
-        }
-        
-        String jsonResponse = gson.toJson(cities);
-        sendJsonResponse(response, jsonResponse);
-        
         logger.info("Returned " + cities.size() + " cities for region: " + regionCode);
+        return ResponseEntity.ok(cities);
     }
-    
-    /**
-     * Handle GET /api/cities/{id} - Return city by ID
-     */
-    private void handleGetCityById(int cityId, HttpServletResponse response) 
-            throws IOException {
-        
-        City city = cityDAO.getCityById(cityId);
-        
+
+    /** GET /api/cities/{id} — return city by ID */
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getCityById(@PathVariable int id) {
+        City city = cityDAO.getCityById(id);
         if (city == null) {
-            sendErrorResponse(response, HttpServletResponse.SC_NOT_FOUND, 
-                             "City not found: " + cityId);
-            return;
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("{\"error\": \"City not found: " + id + "\"}");
         }
-        
-        String jsonResponse = gson.toJson(city);
-        sendJsonResponse(response, jsonResponse);
-        
-        logger.info("Returned city: " + city);
+        return ResponseEntity.ok(city);
     }
-    
-    /**
-     * Send JSON response
-     */
-    private void sendJsonResponse(HttpServletResponse response, String jsonResponse) 
-            throws IOException {
-        PrintWriter out = response.getWriter();
-        out.print(jsonResponse);
-        out.flush();
+
+    /** POST /api/cities — create a new city */
+    @PostMapping
+    public ResponseEntity<?> createCity(@RequestBody City city) {
+        if (city.getName() == null || city.getRegionCode() == null) {
+            return ResponseEntity.badRequest().body("{\"error\": \"Invalid city data\"}");
+        }
+        if (cityDAO.insertCity(city)) {
+            logger.info("Created city: " + city);
+            return ResponseEntity.status(HttpStatus.CREATED).body(city);
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("{\"error\": \"Failed to create city or city already exists\"}");
     }
-    
-    /**
-     * Send error response
-     */
-    private void sendErrorResponse(HttpServletResponse response, int statusCode, String message) 
-            throws IOException {
-        response.setStatus(statusCode);
-        PrintWriter out = response.getWriter();
-        out.print("{\"error\": \"" + message + "\"}");
-        out.flush();
+
+    /** PUT /api/cities — update an existing city */
+    @PutMapping
+    public ResponseEntity<?> updateCity(@RequestBody City city) {
+        if (city.getId() <= 0 || city.getName() == null || city.getRegionCode() == null) {
+            return ResponseEntity.badRequest().body("{\"error\": \"Invalid city data or missing ID\"}");
+        }
+        if (cityDAO.updateCity(city)) {
+            logger.info("Updated city: " + city);
+            return ResponseEntity.ok(city);
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("{\"error\": \"Failed to update city\"}");
     }
-    
-    @Override
-    public void destroy() {
-        super.destroy();
-        logger.info("CityServlet destroyed");
+
+    /** DELETE /api/cities/{id} — delete a city by ID */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCity(@PathVariable int id) {
+        if (cityDAO.deleteCity(id)) {
+            logger.info("Deleted city with ID: " + id);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("{\"error\": \"City not found or failed to delete\"}");
     }
 }
