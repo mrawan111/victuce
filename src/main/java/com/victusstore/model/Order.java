@@ -26,6 +26,12 @@ public class Order {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String address;
 
+    @Column(name = "region", length = 100)
+    private String region;
+
+    @Column(name = "city", length = 100)
+    private String city;
+
     @Column(name = "phone_num", nullable = false, length = 15)
     private String phoneNum;
 

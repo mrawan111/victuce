@@ -256,6 +256,8 @@ public class OrderController {
         Order order = new Order();
         order.setEmail(cart.getEmail());
         order.setAddress(orderRequest.getAddress() != null ? orderRequest.getAddress() : "");
+        order.setRegion(orderRequest.getRegion() != null ? orderRequest.getRegion() : "");
+        order.setCity(orderRequest.getCity() != null ? orderRequest.getCity() : "");
         String phoneNum = orderRequest.getPhoneNum() != null ? orderRequest.getPhoneNum() :
                 (account.getPhoneNum() != null ? account.getPhoneNum() : "");
         order.setPhoneNum(phoneNum);

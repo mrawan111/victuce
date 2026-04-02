@@ -11,6 +11,12 @@ public class CreateOrderRequest {
     @Size(max = 500, message = "Address must not exceed 500 characters")
     private String address;
     
+    @Size(max = 100, message = "Region must not exceed 100 characters")
+    private String region;
+    
+    @Size(max = 100, message = "City must not exceed 100 characters")
+    private String city;
+    
     @Size(max = 15, message = "Phone number must not exceed 15 characters")
     private String phoneNum;
     
