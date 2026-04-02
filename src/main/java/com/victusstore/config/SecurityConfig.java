@@ -51,7 +51,8 @@ public class SecurityConfig {
                         "/api/reviews/product/**",
                         "/api/categories/**",
                         "/api/variants/**",
-                        "/api/images/**").permitAll()
+                        "/api/images/**",
+                        "/api/egypt-regions/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").hasRole("ADMIN") // lock down docs in prod
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
