@@ -6,396 +6,345 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS public.accounts
 (
     email character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp(6) without time zone,
     first_name character varying(255) COLLATE pg_catalog."default",
+    is_active boolean,
+    last_login timestamp(6) without time zone,
     last_name character varying(255) COLLATE pg_catalog."default",
     password character varying(255) COLLATE pg_catalog."default" NOT NULL,
     phone_num character varying(15) COLLATE pg_catalog."default",
-    seller_account boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    last_login timestamp without time zone,
-    is_active boolean DEFAULT true,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    role character varying(20) COLLATE pg_catalog."default",
+    seller_account boolean,
+    updated_at timestamp(6) without time zone,
     CONSTRAINT accounts_pkey PRIMARY KEY (email)
 );
 
 CREATE TABLE IF NOT EXISTS public.admin_activities
 (
     activity_id bigserial NOT NULL,
-    admin_email character varying(255) COLLATE pg_catalog."default" NOT NULL,
     action_type character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    entity_type character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    entity_id bigint,
+    admin_email character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp(6) without time zone,
     description text COLLATE pg_catalog."default",
+    entity_id bigint,
+    entity_type character varying(50) COLLATE pg_catalog."default" NOT NULL,
     ip_address character varying(45) COLLATE pg_catalog."default",
     user_agent character varying(500) COLLATE pg_catalog."default",
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT admin_activities_pkey PRIMARY KEY (activity_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.cart
 (
     cart_id bigserial NOT NULL,
+    created_at timestamp(6) without time zone,
     email character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    total_price numeric(10, 2) DEFAULT 0.00,
-    is_active boolean DEFAULT true,
+    is_active boolean,
+    total_price numeric(10, 2),
+    updated_at timestamp(6) without time zone,
     CONSTRAINT cart_pkey PRIMARY KEY (cart_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.cart_products
 (
     id bigserial NOT NULL,
-    variant_id bigint NOT NULL,
     cart_id bigint NOT NULL,
+    created_at timestamp(6) without time zone,
     order_id bigint,
-    quantity integer NOT NULL,
     price_at_time numeric(10, 2) NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT cart_products_pkey PRIMARY KEY (id)
+    quantity integer NOT NULL,
+    variant_id bigint NOT NULL,
+    CONSTRAINT cart_products_pkey PRIMARY KEY (id),
+    CONSTRAINT uk_cart_variant UNIQUE (cart_id, variant_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.categories
 (
     category_id bigserial NOT NULL,
-    category_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
     category_image character varying(255) COLLATE pg_catalog."default",
+    category_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp(6) without time zone,
+    is_active boolean,
     parent_category_id bigint,
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT categories_pkey PRIMARY KEY (category_id),
-    CONSTRAINT categories_category_name_key UNIQUE (category_name)
+    CONSTRAINT uk_41g4n0emuvcm3qyf1f6cn43c0 UNIQUE (category_name)
 );
+
+CREATE TABLE IF NOT EXISTS public.cities
+(
+    id bigserial NOT NULL,
+    name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    region_code character varying(10) COLLATE pg_catalog."default" NOT NULL,
+    is_other boolean DEFAULT false,
+    CONSTRAINT cities_pkey PRIMARY KEY (id),
+    CONSTRAINT unique_city UNIQUE (name, region_code),
+    CONSTRAINT unique_city_region UNIQUE (name, region_code)
+);
+
+COMMENT ON TABLE public.cities
+    IS 'Egyptian cities linked to regions';
+
+COMMENT ON COLUMN public.cities.region_code
+    IS 'Foreign key reference to regions.region_code';
 
 CREATE TABLE IF NOT EXISTS public.coupons
 (
     coupon_id bigserial NOT NULL,
     coupon_code character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp(6) without time zone,
     description character varying(255) COLLATE pg_catalog."default",
     discount_type character varying(20) COLLATE pg_catalog."default" NOT NULL,
     discount_value numeric(10, 2) NOT NULL,
-    min_purchase_amount numeric(10, 2),
+    is_active boolean,
     max_discount_amount numeric(10, 2),
+    min_purchase_amount numeric(10, 2),
+    updated_at timestamp(6) without time zone,
     usage_limit integer,
-    used_count integer DEFAULT 0,
-    valid_from timestamp without time zone NOT NULL,
-    valid_until timestamp without time zone NOT NULL,
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    used_count integer,
+    valid_from timestamp(6) without time zone NOT NULL,
+    valid_until timestamp(6) without time zone NOT NULL,
     CONSTRAINT coupons_pkey PRIMARY KEY (coupon_id),
-    CONSTRAINT coupons_coupon_code_key UNIQUE (coupon_code)
+    CONSTRAINT uk_f1u99ssbdsqass9ntq968codg UNIQUE (coupon_code)
+);
+
+CREATE TABLE IF NOT EXISTS public.idempotency_keys
+(
+    id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    endpoint character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    key character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    request_hash character varying(64) COLLATE pg_catalog."default",
+    response_body text COLLATE pg_catalog."default",
+    user_email character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT idempotency_keys_pkey PRIMARY KEY (id),
+    CONSTRAINT uk_idempotency_key_user_endpoint UNIQUE (key, user_email, endpoint)
 );
 
 CREATE TABLE IF NOT EXISTS public.images
 (
     image_id bigserial NOT NULL,
+    created_at timestamp(6) without time zone,
+    image_url character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    is_primary boolean,
     product_id bigint NOT NULL,
     variant_id bigint,
-    image_url character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    is_primary boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT images_pkey PRIMARY KEY (image_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.orders
 (
     order_id bigserial NOT NULL,
-    email character varying(255) COLLATE pg_catalog."default" NOT NULL,
     address text COLLATE pg_catalog."default" NOT NULL,
+    email character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    order_date timestamp(6) without time zone,
+    order_status character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    payment_method character varying(50) COLLATE pg_catalog."default",
+    payment_status character varying(20) COLLATE pg_catalog."default" NOT NULL,
     phone_num character varying(15) COLLATE pg_catalog."default" NOT NULL,
     total_price numeric(10, 2) NOT NULL,
-    order_status character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'pending'::character varying,
-    payment_status character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'pending'::character varying,
-    payment_method character varying(50) COLLATE pg_catalog."default",
-    order_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp(6) without time zone,
+    city character varying(100) COLLATE pg_catalog."default",
+    region character varying(100) COLLATE pg_catalog."default",
     CONSTRAINT orders_pkey PRIMARY KEY (order_id)
 );
+
+COMMENT ON COLUMN public.orders.city
+    IS 'City/locality within the region (e.g., New Cairo, Helwan)';
+
+COMMENT ON COLUMN public.orders.region
+    IS 'Egypt governorate/region (e.g., Cairo, Giza, Alexandria)';
 
 CREATE TABLE IF NOT EXISTS public.product_variants
 (
     variant_id bigserial NOT NULL,
-    product_id bigint NOT NULL,
     color character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    size character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    stock_quantity integer NOT NULL,
+    created_at timestamp(6) without time zone,
+    is_active boolean,
     price numeric(10, 2) NOT NULL,
+    product_id bigint NOT NULL,
+    size character varying(50) COLLATE pg_catalog."default" NOT NULL,
     sku character varying(50) COLLATE pg_catalog."default",
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    stock_quantity integer NOT NULL,
+    updated_at timestamp(6) without time zone,
     CONSTRAINT product_variants_pkey PRIMARY KEY (variant_id),
-    CONSTRAINT product_variants_sku_key UNIQUE (sku)
+    CONSTRAINT uk_q935p2d1pbjm39n0063ghnfgn UNIQUE (sku)
 );
 
 CREATE TABLE IF NOT EXISTS public.products
 (
     product_id bigserial NOT NULL,
-    product_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    description text COLLATE pg_catalog."default",
     base_price numeric(10, 2) NOT NULL,
     category_id bigint,
+    created_at timestamp(6) without time zone,
+    description text COLLATE pg_catalog."default",
+    is_active boolean,
+    product_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    product_rating numeric(2, 1),
     seller_id bigint,
-    product_rating numeric(2, 1) DEFAULT 0.0,
-    is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp(6) without time zone,
     CONSTRAINT products_pkey PRIMARY KEY (product_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.refresh_tokens
+(
+    id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    replaced_by_token character varying(500) COLLATE pg_catalog."default",
+    revoked boolean NOT NULL,
+    token character varying(500) COLLATE pg_catalog."default" NOT NULL,
+    user_email character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT refresh_tokens_pkey PRIMARY KEY (id),
+    CONSTRAINT idx_refresh_token_token UNIQUE (token),
+    CONSTRAINT uk_ghpmfn23vmxfu3spu3lfg4r2d UNIQUE (token)
+);
+
+CREATE TABLE IF NOT EXISTS public.regions
+(
+    id bigserial NOT NULL,
+    name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    region_code character varying(10) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT regions_pkey PRIMARY KEY (id),
+    CONSTRAINT regions_region_code_key UNIQUE (region_code)
+);
+
+COMMENT ON TABLE public.regions
+    IS 'Egyptian governorates/regions';
+
+COMMENT ON COLUMN public.regions.region_code
+    IS 'ISO code for the region (unique)';
+
 CREATE TABLE IF NOT EXISTS public.reviews
 (
-    review_id serial NOT NULL,
-    product_id integer NOT NULL,
-    email character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    rating integer,
+    review_id bigserial NOT NULL,
     comment text COLLATE pg_catalog."default",
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamp(6) without time zone,
+    email character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    product_id bigint NOT NULL,
+    rating integer NOT NULL,
     CONSTRAINT reviews_pkey PRIMARY KEY (review_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.sellers
 (
     seller_id bigserial NOT NULL,
-    seller_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp(6) without time zone,
     email character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    rating numeric(3, 2) DEFAULT 0.0,
-    is_active boolean DEFAULT true,
+    is_active boolean,
+    rating numeric(3, 2),
+    seller_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT sellers_pkey PRIMARY KEY (seller_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.store_settings
 (
     id bigserial NOT NULL,
-    store_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    store_address character varying(255) COLLATE pg_catalog."default",
     store_email character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    store_phone character varying(50) COLLATE pg_catalog."default",
-    store_address character varying(500) COLLATE pg_catalog."default",
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    store_name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    store_phone character varying(255) COLLATE pg_catalog."default",
+    updated_at timestamp(6) without time zone,
     updated_by character varying(255) COLLATE pg_catalog."default",
     CONSTRAINT store_settings_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE IF NOT EXISTS public.shipping_tracking
-(
-    tracking_id serial NOT NULL,
-    order_id integer NOT NULL,
-    carrier_name character varying(100) COLLATE pg_catalog."default",
-    tracking_number character varying(100) COLLATE pg_catalog."default",
-    shipping_status character varying(20) COLLATE pg_catalog."default",
-    estimated_delivery timestamp without time zone,
-    actual_delivery timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT shipping_tracking_pkey PRIMARY KEY (tracking_id)
-);
-
 ALTER TABLE IF EXISTS public.cart
-    ADD CONSTRAINT cart_email_fkey FOREIGN KEY (email)
+    ADD CONSTRAINT fkpxh1c2476to2ygwqhsaphl1fj FOREIGN KEY (email)
     REFERENCES public.accounts (email) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.cart_products
-    ADD CONSTRAINT cart_products_cart_id_fkey FOREIGN KEY (cart_id)
-    REFERENCES public.cart (cart_id) MATCH SIMPLE
+    ADD CONSTRAINT fk934i1g0jw521gfcdpukayxk12 FOREIGN KEY (variant_id)
+    REFERENCES public.product_variants (variant_id) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS ix_cartproducts_cartid
-    ON public.cart_products(cart_id);
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.cart_products
-    ADD CONSTRAINT cart_products_order_id_fkey FOREIGN KEY (order_id)
+    ADD CONSTRAINT fkk6r8oo5dimw364x57t8rvafap FOREIGN KEY (order_id)
     REFERENCES public.orders (order_id) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE SET NULL;
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.cart_products
-    ADD CONSTRAINT cart_products_variant_id_fkey FOREIGN KEY (variant_id)
-    REFERENCES public.product_variants (variant_id) MATCH SIMPLE
+    ADD CONSTRAINT fknlhjc091rdu9k5c8u9xwp280w FOREIGN KEY (cart_id)
+    REFERENCES public.cart (cart_id) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
-CREATE INDEX IF NOT EXISTS ix_cartproducts_variantid
-    ON public.cart_products(variant_id);
 
 
-ALTER TABLE IF EXISTS public.categories
-    ADD CONSTRAINT categories_parent_category_id_fkey FOREIGN KEY (parent_category_id)
-    REFERENCES public.categories (category_id) MATCH SIMPLE
+ALTER TABLE IF EXISTS public.cities
+    ADD CONSTRAINT fk_cities_region FOREIGN KEY (region_code)
+    REFERENCES public.regions (region_code) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_region_code
+    ON public.cities(region_code);
+
+
+ALTER TABLE IF EXISTS public.images
+    ADD CONSTRAINT fk4yevkhjwvv9opb40rancxeq9l FOREIGN KEY (variant_id)
+    REFERENCES public.product_variants (variant_id) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.images
-    ADD CONSTRAINT images_product_id_fkey FOREIGN KEY (product_id)
+    ADD CONSTRAINT fkghwsjbjo7mg3iufxruvq6iu3q FOREIGN KEY (product_id)
     REFERENCES public.products (product_id) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS ix_images_productid
-    ON public.images(product_id);
-
-
-ALTER TABLE IF EXISTS public.images
-    ADD CONSTRAINT images_variant_id_fkey FOREIGN KEY (variant_id)
-    REFERENCES public.product_variants (variant_id) MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE CASCADE;
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.orders
-    ADD CONSTRAINT orders_email_fkey FOREIGN KEY (email)
+    ADD CONSTRAINT fk7bkchuyfb1m6sv3529k8hl33r FOREIGN KEY (email)
     REFERENCES public.accounts (email) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
-CREATE INDEX IF NOT EXISTS ix_orders_email
-    ON public.orders(email);
 
 
 ALTER TABLE IF EXISTS public.product_variants
-    ADD CONSTRAINT product_variants_product_id_fkey FOREIGN KEY (product_id)
+    ADD CONSTRAINT fkosqitn4s405cynmhb87lkvuau FOREIGN KEY (product_id)
     REFERENCES public.products (product_id) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS ix_productvariants_productid
-    ON public.product_variants(product_id);
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.products
-    ADD CONSTRAINT products_category_id_fkey FOREIGN KEY (category_id)
-    REFERENCES public.categories (category_id) MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS ix_products_categoryid
-    ON public.products(category_id);
-
-
-ALTER TABLE IF EXISTS public.products
-    ADD CONSTRAINT products_seller_id_fkey FOREIGN KEY (seller_id)
+    ADD CONSTRAINT fkepbha8uixgrmnejm27n6e1kkd FOREIGN KEY (seller_id)
     REFERENCES public.sellers (seller_id) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS ix_products_sellerid
-    ON public.products(seller_id);
+    ON DELETE NO ACTION;
+
+
+ALTER TABLE IF EXISTS public.products
+    ADD CONSTRAINT fkog2rp4qthbtt2lfyhfo32lsw9 FOREIGN KEY (category_id)
+    REFERENCES public.categories (category_id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.reviews
-    ADD CONSTRAINT reviews_email_fkey FOREIGN KEY (email)
+    ADD CONSTRAINT fkfj5s1l2ggp03yunsxuheq4upv FOREIGN KEY (email)
     REFERENCES public.accounts (email) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.reviews
-    ADD CONSTRAINT reviews_product_id_fkey FOREIGN KEY (product_id)
+    ADD CONSTRAINT fkpl51cejpw4gy5swfar8br9ngi FOREIGN KEY (product_id)
     REFERENCES public.products (product_id) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS ix_reviews_productid
-    ON public.reviews(product_id);
+    ON DELETE NO ACTION;
 
 
 ALTER TABLE IF EXISTS public.sellers
-    ADD CONSTRAINT sellers_email_fkey FOREIGN KEY (email)
+    ADD CONSTRAINT fkl1wuow2v0lqlhe0xgpimtkhfn FOREIGN KEY (email)
     REFERENCES public.accounts (email) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE CASCADE;
+    ON DELETE NO ACTION;
 
-CREATE INDEX IF NOT EXISTS ix_storesettings_updatedat
-    ON public.store_settings(updated_at);
-
-
-ALTER TABLE IF EXISTS public.shipping_tracking
-    ADD CONSTRAINT shipping_tracking_order_id_fkey FOREIGN KEY (order_id)
-    REFERENCES public.orders (order_id) MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE CASCADE;
-
--- Insert dummy seller account
-INSERT INTO accounts (email, password, seller_account, first_name, last_name, is_active, created_at) VALUES
-('seller@victus.com', '$2a$10$dummyhashedpassword', true, 'Victus', 'Sports', true, CURRENT_TIMESTAMP);
-
--- Insert seller
-INSERT INTO sellers (seller_name, email) VALUES ('Victus Sports', 'seller@victus.com');
-
--- Insert test user account (password: test123)
-INSERT INTO accounts (email, password, seller_account, first_name, last_name, phone_num, is_active, created_at) VALUES
-('test@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', false, 'Test', 'User', '1234567890', true, CURRENT_TIMESTAMP);
-
--- Insert categories
-INSERT INTO categories (category_name, category_image, is_active) VALUES
-('Football Equipment', 'https://res.cloudinary.com/demo/image/upload/v1/sports/football_category.jpg', true),
-('Basketball Gear', 'https://res.cloudinary.com/demo/image/upload/v1/sports/basketball_category.jpg', true),
-('Running & Athletics', 'https://res.cloudinary.com/demo/image/upload/v1/sports/running_category.jpg', true),
-('Tennis Equipment', 'https://res.cloudinary.com/demo/image/upload/v1/sports/tennis_category.jpg', true),
-('Gym & Fitness', 'https://res.cloudinary.com/demo/image/upload/v1/sports/gym_category.jpg', true);
-
--- Insert products
-INSERT INTO products (product_name, description, base_price, category_id, seller_id, product_rating, is_active) VALUES
-('Nike Joyride Running Shoes', 'Revolutionary running shoes with Nike Joyride cushioning technology. Beads in the midsole conform to your foot for personalized comfort on every run.', 179.99, 3, 1, 4.7, true),
-('UZSPACE Sports Water Bottle 650ml', 'BPA-free Tritan sports water bottle with flip-top lid and leak-proof design. Perfect for gym, running, and outdoor activities.', 19.99, 5, 1, 4.6, true),
-('FZS Elite Boxing Shorts - Urban Camo Black', 'Premium boxing shorts with sublimated camo graphics and 4-way stretch fabric. Designed for maximum mobility in combat sports.', 54.99, 5, 1, 4.7, true),
-('C2H4 x LACOSTE Future Tennis Racquet', 'Designer collaboration tennis racquet with futuristic aesthetics. High-performance graphite composite frame for competitive play.', 249.99, 4, 1, 4.8, true),
-('Professional Heavy Punching Bag 100lbs', 'Durable heavy bag filled with textile and sand mix. Reinforced hanging system included. Ideal for boxing and kickboxing training.', 189.99, 5, 1, 4.8, true),
-('Premium Boxing Gloves - Gold Edition', 'Professional boxing gloves with multi-layer foam padding and wrist support. Premium synthetic leather construction with elegant gold finish.', 79.99, 5, 1, 4.7, true),
-('Women''s Blue New York Boxing Gloves', 'Stylish women''s boxing gloves with premium design and ergonomic fit. Superior quality with wrist wrap closure for secure support.', 69.99, 5, 1, 4.8, true),
-('Professional Tennis Racquet Set', 'High-performance tennis racquet with graphite composite frame. 27-inch length with 100 sq in head size for power and control.', 149.99, 4, 1, 4.6, true),
-('AMANDA NILSSON Training Top', 'Premium athletic training top with moisture-wicking fabric. Designed for high-intensity workouts and yoga sessions.', 49.99, 5, 1, 4.6, true),
-('Professional Speed Jump Rope', 'High-performance speed jump rope with ergonomic handles and ball-bearing system. Adjustable length cable for personalized fit.', 24.99, 5, 1, 4.5, true);
-
--- Insert product variants
-INSERT INTO product_variants (product_id, color, size, stock_quantity, price, sku, is_active) VALUES
-(1, 'White/Pink', 'US 7', 25, 179.99, 'NK-JR-WP-7', true),
-(1, 'White/Pink', 'US 8', 30, 179.99, 'NK-JR-WP-8', true),
-(1, 'White/Pink', 'US 9', 35, 179.99, 'NK-JR-WP-9', true),
-(1, 'White/Pink', 'US 10', 20, 179.99, 'NK-JR-WP-10', true),
-(2, 'Blue', '650ml', 60, 19.99, 'UZ-WB-BL-650', true),
-(2, 'Pink', '650ml', 50, 19.99, 'UZ-WB-PK-650', true),
-(2, 'Gray', '650ml', 55, 19.99, 'UZ-WB-GR-650', true),
-(2, 'Green', '650ml', 45, 19.99, 'UZ-WB-GN-650', true),
-(3, 'Urban Camo Black', 'Small', 25, 54.99, 'FZS-EBS-UCB-S', true),
-(3, 'Urban Camo Black', 'Medium', 30, 54.99, 'FZS-EBS-UCB-M', true),
-(3, 'Urban Camo Black', 'Large', 35, 54.99, 'FZS-EBS-UCB-L', true),
-(3, 'Urban Camo Black', 'X-Large', 25, 54.99, 'FZS-EBS-UCB-XL', true),
-(4, 'White/Black', 'Grip 2', 15, 249.99, 'C2H4-LAC-WB-G2', true),
-(4, 'White/Black', 'Grip 3', 20, 249.99, 'C2H4-LAC-WB-G3', true),
-(4, 'White/Black', 'Grip 4', 18, 249.99, 'C2H4-LAC-WB-G4', true),
-(5, 'Black', '100 lbs', 15, 189.99, 'HB-PRO-BK-100', true),
-(5, 'Black', '80 lbs', 20, 169.99, 'HB-PRO-BK-80', true),
-(6, 'Gold', '10 oz', 25, 79.99, 'BG-GOLD-10', true),
-(6, 'Gold', '12 oz', 30, 79.99, 'BG-GOLD-12', true),
-(6, 'Gold', '14 oz', 25, 84.99, 'BG-GOLD-14', true),
-(6, 'Gold', '16 oz', 20, 89.99, 'BG-GOLD-16', true),
-(7, 'Blue', '8 oz', 30, 69.99, 'WBG-NY-BL-8', true),
-(7, 'Blue', '10 oz', 35, 69.99, 'WBG-NY-BL-10', true),
-(7, 'Blue', '12 oz', 30, 74.99, 'WBG-NY-BL-12', true),
-(8, 'White/Blue', 'Grip 2', 18, 149.99, 'TR-PRO-WB-G2', true),
-(8, 'White/Blue', 'Grip 3', 22, 149.99, 'TR-PRO-WB-G3', true),
-(8, 'White/Blue', 'Grip 4', 15, 149.99, 'TR-PRO-WB-G4', true),
-(9, 'Black', 'Small', 30, 49.99, 'AN-TT-BK-S', true),
-(9, 'Black', 'Medium', 40, 49.99, 'AN-TT-BK-M', true),
-(9, 'Black', 'Large', 35, 49.99, 'AN-TT-BK-L', true),
-(10, 'Black/Red', 'Adjustable 3m', 100, 24.99, 'JR-PRO-BR-3M', true),
-(10, 'Blue', 'Adjustable 3m', 80, 24.99, 'JR-PRO-BL-3M', true);
-
--- Insert images
-INSERT INTO images (product_id, image_url, is_primary) VALUES
-(1, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217276/Nike_s_Joyride_Collection_Is_Designed_to_Make_Your_Running_Routine_Easier_Than_Ever_crlpfj.jpg', true),
-(2, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217277/Water_Bottle_for_Outdoor_Sports_-_650ml___blue_lnpzd7.jpg', true),
-(3, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217276/FZS-MT01_ELITE_BOXING_SHORTS_-_URBAN_CAMO_BLACK_klmk5z.jpg', true),
-(4, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217276/C2H4_x_LACOSTE__The_Future_Tennis_Championship_-_Fucking_Young_qnbfgt.jpg', true),
-(5, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217277/16_Affordable_Home_Workout_Items_Professional_Trainers_Swear_By_xmkfcl.jpg', true),
-(6, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217276/Golden_Boxing_Gloves_Kiss-Cut_Stickers___Sports_Decor_Gym_Motivation_Gift_for_Athletes_Laptop_Decal_Unique_Sports_Stickers_tt0ase.jpg', true),
-(7, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217277/Women_s_Blue_New_York_Boxing_Gloves___Medium___Splendore_mbkayl.jpg', true),
-(8, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217277/download_1_b2goyz.jpg', true),
-(9, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217276/AMANDA_NILSSON_ik5glp.jpg', true),
-(10, 'https://res.cloudinary.com/detnafpfd/image/upload/v1763217276/download_r92s8l.jpg', true);
-
--- Insert additional images
-INSERT INTO images (product_id, image_url, is_primary) VALUES
-(1, 'https://res.cloudinary.com/detnafpfd/image/upload/v1762690484/cld-sample-5.jpg', false);
-
+END;
