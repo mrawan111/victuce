@@ -68,8 +68,20 @@ public class CategoryController {
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<Category> createCategory(@RequestBody Category category) {
         Category savedCategory = categoryRepository.save(category);
+        
+        if (savedCategory.getParentCategoryId() != null) {
+            entityManager.createNativeQuery(
+                "INSERT INTO product_categories (product_id, category_id) " +
+                "SELECT product_id, :newCategoryId FROM product_categories WHERE category_id = :parentCategoryId"
+            )
+            .setParameter("newCategoryId", savedCategory.getCategoryId())
+            .setParameter("parentCategoryId", savedCategory.getParentCategoryId())
+            .executeUpdate();
+        }
+        
         return ResponseEntity.ok(savedCategory);
     }
 
