@@ -47,10 +47,16 @@ public class ProductController {
 
     @GetMapping
     public ResponseEntity<Page<Product>> getAllProducts(
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Product> products = productRepository.findAll(pageable);
+        Page<Product> products;
+        if (categoryId != null) {
+            products = productRepository.findByCategoryId(categoryId, pageable);
+        } else {
+            products = productRepository.findAll(pageable);
+        }
         return ResponseEntity.ok(products);
     }
 

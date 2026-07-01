@@ -20,8 +20,8 @@ SELECT product_id, category_id
 FROM products 
 WHERE category_id IS NOT NULL;
 
--- Drop the foreign key constraint on products.category_id
-ALTER TABLE products DROP CONSTRAINT IF EXISTS products_category_id_fkey;
+-- Drop the foreign key constraint on products.category_id (constraint name from database_complete.sql)
+ALTER TABLE products DROP CONSTRAINT IF EXISTS fkog2rp4qthbtt2lfyhfo32lsw9;
 
 -- Drop the category_id column from products table
 ALTER TABLE products DROP COLUMN IF EXISTS category_id;
