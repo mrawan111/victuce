@@ -1,12 +1,14 @@
 package com.victusstore.controller;
 
 import com.victusstore.model.Product;
+import com.victusstore.model.Category;
 import com.victusstore.model.ProductVariant;
 import com.victusstore.model.CartProduct;
 import com.victusstore.repository.CartProductRepository;
 import com.victusstore.repository.CartRepository;
 import com.victusstore.repository.ProductRepository;
 import com.victusstore.repository.ProductVariantRepository;
+import com.victusstore.repository.CategoryRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @RestController
@@ -39,6 +42,9 @@ public class ProductController {
     @Autowired
     private CartRepository cartRepository;
 
+    @Autowired
+    private CategoryRepository categoryRepository;
+
     @GetMapping
     public ResponseEntity<Page<Product>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
@@ -56,21 +62,55 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+    public ResponseEntity<Product> createProduct(@RequestBody Map<String, Object> payload) {
+        Product product = new Product();
+        product.setProductName((String) payload.get("productName"));
+        product.setDescription((String) payload.get("description"));
+        product.setBasePrice(payload.get("basePrice") != null ? 
+            new BigDecimal(payload.get("basePrice").toString()) : null);
+        product.setSellerId(payload.get("sellerId") != null ? 
+            Long.valueOf(payload.get("sellerId").toString()) : null);
+        product.setIsActive(payload.get("isActive") != null ? 
+            Boolean.valueOf(payload.get("isActive").toString()) : true);
+
+        // Handle categories
+        if (payload.get("categoryIds") != null) {
+            @SuppressWarnings("unchecked")
+            List<Integer> categoryIds = (List<Integer>) payload.get("categoryIds");
+            Set<Category> categories = categoryIds.stream()
+                .map(id -> categoryRepository.findById(id.longValue()))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .collect(Collectors.toSet());
+            product.setCategories(categories);
+        }
+
         Product savedProduct = productRepository.save(product);
         return ResponseEntity.ok(savedProduct);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product productDetails) {
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         return productRepository.findById(id)
                 .map(product -> {
-                    if (productDetails.getProductName() != null) product.setProductName(productDetails.getProductName());
-                    if (productDetails.getDescription() != null) product.setDescription(productDetails.getDescription());
-                    if (productDetails.getBasePrice() != null) product.setBasePrice(productDetails.getBasePrice());
-                    if (productDetails.getCategoryId() != null) product.setCategoryId(productDetails.getCategoryId());
-                    if (productDetails.getSellerId() != null) product.setSellerId(productDetails.getSellerId());
-                    if (productDetails.getIsActive() != null) product.setIsActive(productDetails.getIsActive());
+                    if (payload.get("productName") != null) product.setProductName((String) payload.get("productName"));
+                    if (payload.get("description") != null) product.setDescription((String) payload.get("description"));
+                    if (payload.get("basePrice") != null) product.setBasePrice(new BigDecimal(payload.get("basePrice").toString()));
+                    if (payload.get("sellerId") != null) product.setSellerId(Long.valueOf(payload.get("sellerId").toString()));
+                    if (payload.get("isActive") != null) product.setIsActive(Boolean.valueOf(payload.get("isActive").toString()));
+                    
+                    // Handle categories - replace existing categories with new ones
+                    if (payload.get("categoryIds") != null) {
+                        @SuppressWarnings("unchecked")
+                        List<Integer> categoryIds = (List<Integer>) payload.get("categoryIds");
+                        Set<Category> categories = categoryIds.stream()
+                            .map(catId -> categoryRepository.findById(catId.longValue()))
+                            .filter(java.util.Optional::isPresent)
+                            .map(java.util.Optional::get)
+                            .collect(Collectors.toSet());
+                        product.setCategories(categories);
+                    }
+                    
                     Product updatedProduct = productRepository.save(product);
                     return ResponseEntity.ok(updatedProduct);
                 })

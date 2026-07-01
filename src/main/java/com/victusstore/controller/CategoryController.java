@@ -3,6 +3,8 @@ package com.victusstore.controller;
 import com.victusstore.model.Category;
 import com.victusstore.repository.CategoryRepository;
 import com.victusstore.services.CloudinaryService;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,9 @@ public class CategoryController {
 
     @Autowired
     private CloudinaryService cloudinaryService;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @GetMapping
     public ResponseEntity<List<Category>> getAllCategories() {
@@ -82,10 +87,21 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Map<String, Boolean>> deleteCategory(@PathVariable Long id) {
         return categoryRepository.findById(id)
                 .map(category -> {
+                    // Remove all product-category relations for this category
+                    // This will NOT delete the products, only the join table entries
+                    entityManager.createNativeQuery(
+                        "DELETE FROM product_categories WHERE category_id = :categoryId"
+                    )
+                    .setParameter("categoryId", id)
+                    .executeUpdate();
+                    
+                    // Now delete the category
                     categoryRepository.delete(category);
+                    
                     Map<String, Boolean> response = new HashMap<>();
                     response.put("deleted", Boolean.TRUE);
                     return ResponseEntity.ok(response);

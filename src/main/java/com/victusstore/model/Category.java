@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 @Entity
 @Table(name = "categories")
@@ -34,9 +36,9 @@ public class Category {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "category")
+    @ManyToMany(mappedBy = "categories")
     @JsonIgnore
-    private List<Product> products;
+    private Set<Product> products = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {
