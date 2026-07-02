@@ -118,17 +118,26 @@ public class ProductController {
                         @SuppressWarnings("unchecked")
                         List<Integer> categoryIds = (List<Integer>) payload.get("categoryIds");
                         
-                        // Clear existing categories
-                        product.getCategories().clear();
+                        // Get current category IDs
+                        Set<Long> currentCategoryIds = product.getCategories().stream()
+                            .map(Category::getCategoryId)
+                            .collect(Collectors.toSet());
                         
-                        // Add new categories if provided
-                        if (categoryIds != null && !categoryIds.isEmpty()) {
-                            Set<Category> categories = categoryIds.stream()
-                                .map(catId -> categoryRepository.findById(catId.longValue()))
-                                .filter(java.util.Optional::isPresent)
-                                .map(java.util.Optional::get)
-                                .collect(Collectors.toSet());
-                            product.getCategories().addAll(categories);
+                        // Get new category IDs
+                        Set<Long> newCategoryIds = categoryIds != null 
+                            ? categoryIds.stream().map(Long::valueOf).collect(Collectors.toSet())
+                            : new HashSet<>();
+                        
+                        // Remove categories that are no longer in the new list
+                        product.getCategories().removeIf(category -> !newCategoryIds.contains(category.getCategoryId()));
+                        
+                        // Add new categories that weren't in the old list
+                        if (categoryIds != null) {
+                            for (Integer catId : categoryIds) {
+                                if (!currentCategoryIds.contains(catId.longValue())) {
+                                    categoryRepository.findById(catId.longValue()).ifPresent(product.getCategories()::add);
+                                }
+                            }
                         }
                     }
                     
