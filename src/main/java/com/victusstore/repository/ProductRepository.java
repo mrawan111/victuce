@@ -26,11 +26,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "  SELECT c.category_id FROM categories c " +
            "  INNER JOIN category_tree ct ON c.parent_category_id = ct.category_id" +
            ") " +
-           "SELECT DISTINCT p.* FROM products p " +
+           "SELECT DISTINCT p.product_id FROM products p " +
            "INNER JOIN product_categories pc ON p.product_id = pc.product_id " +
            "INNER JOIN category_tree ct ON pc.category_id = ct.category_id",
            nativeQuery = true)
-    List<Product> findByCategoryIdWithInheritance(@Param("categoryId") Long categoryId);
+    List<Long> findProductIdsByCategoryIdWithInheritance(@Param("categoryId") Long categoryId);
     
     List<Product> findBySellerId(Long sellerId);
     List<Product> findByIsActiveTrue();

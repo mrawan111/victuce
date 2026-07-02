@@ -54,7 +54,8 @@ public class ProductController {
         Page<Product> products;
         if (categoryId != null) {
             // Use inheritance to get products from category and all its descendants
-            List<Product> allProducts = productRepository.findByCategoryIdWithInheritance(categoryId);
+            List<Long> productIds = productRepository.findProductIdsByCategoryIdWithInheritance(categoryId);
+            List<Product> allProducts = productRepository.findAllById(productIds);
             int start = (int) pageable.getOffset();
             int end = Math.min((start + pageable.getPageSize()), allProducts.size());
             List<Product> pageContent = allProducts.subList(start, end);
@@ -201,7 +202,8 @@ public class ProductController {
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
         // Use inheritance to get products from category and all its descendants
-        List<Product> allProducts = productRepository.findByCategoryIdWithInheritance(categoryId);
+        List<Long> productIds = productRepository.findProductIdsByCategoryIdWithInheritance(categoryId);
+        List<Product> allProducts = productRepository.findAllById(productIds);
         
         // Manual pagination for the result
         int start = (int) pageable.getOffset();
