@@ -87,17 +87,7 @@ public class ProductController {
         product.setIsActive(payload.get("isActive") != null ? 
             Boolean.valueOf(payload.get("isActive").toString()) : true);
 
-        // Handle single category
-        if (payload.get("categoryId") != null) {
-            Long categoryId = Long.valueOf(payload.get("categoryId").toString());
-            System.out.println("Setting category ID: " + categoryId);
-            categoryRepository.findById(categoryId).ifPresent(category -> {
-                System.out.println("Found category: " + category.getCategoryName());
-                product.setCategory(category);
-            });
-        } else {
-            System.out.println("categoryId is null in payload");
-        }
+        applyCategoryFromPayload(product, payload);
 
         Product savedProduct = productRepository.save(product);
         return ResponseEntity.ok(savedProduct);
@@ -113,16 +103,8 @@ public class ProductController {
                     if (payload.get("basePrice") != null) product.setBasePrice(new BigDecimal(payload.get("basePrice").toString()));
                     if (payload.get("sellerId") != null) product.setSellerId(Long.valueOf(payload.get("sellerId").toString()));
                     if (payload.get("isActive") != null) product.setIsActive(Boolean.valueOf(payload.get("isActive").toString()));
-                    
-                    // Handle single category
-                    if (payload.containsKey("categoryId")) {
-                        if (payload.get("categoryId") != null) {
-                            Long categoryId = Long.valueOf(payload.get("categoryId").toString());
-                            categoryRepository.findById(categoryId).ifPresent(product::setCategory);
-                        } else {
-                            product.setCategory(null);
-                        }
-                    }
+
+                    applyCategoryFromPayload(product, payload);
                     
                     Product updatedProduct = productRepository.save(product);
                     return ResponseEntity.ok(updatedProduct);
@@ -196,5 +178,21 @@ public class ProductController {
             pageContent, pageable, allProducts.size()
         );
         return ResponseEntity.ok(products);
+    }
+
+    private void applyCategoryFromPayload(Product product, Map<String, Object> payload) {
+        if (payload.containsKey("categoryId")) {
+            Object rawCategoryId = payload.get("categoryId");
+            if (rawCategoryId != null) {
+                setCategoryById(product, rawCategoryId);
+            } else {
+                product.setCategory(null);
+            }
+        }
+    }
+
+    private void setCategoryById(Product product, Object rawCategoryId) {
+        Long categoryId = Long.valueOf(rawCategoryId.toString());
+        categoryRepository.findById(categoryId).ifPresent(product::setCategory);
     }
 }
