@@ -90,7 +90,13 @@ public class ProductController {
         // Handle single category
         if (payload.get("categoryId") != null) {
             Long categoryId = Long.valueOf(payload.get("categoryId").toString());
-            categoryRepository.findById(categoryId).ifPresent(product::setCategory);
+            System.out.println("Setting category ID: " + categoryId);
+            categoryRepository.findById(categoryId).ifPresent(category -> {
+                System.out.println("Found category: " + category.getCategoryName());
+                product.setCategory(category);
+            });
+        } else {
+            System.out.println("categoryId is null in payload");
         }
 
         Product savedProduct = productRepository.save(product);

@@ -50,6 +50,7 @@ public class Product {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties("products")
     private Category category;
 
     @ManyToOne
