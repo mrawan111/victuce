@@ -13,9 +13,11 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByIsActive(Boolean isActive, Pageable pageable);
     
-    List<Product> findByCategoryId(Long categoryId);
+    @Query("SELECT p FROM Product p WHERE p.category.categoryId = :categoryId")
+    List<Product> findByCategoryId(@Param("categoryId") Long categoryId);
     
-    Page<Product> findByCategoryId(Long categoryId, Pageable pageable);
+    @Query("SELECT p FROM Product p WHERE p.category.categoryId = :categoryId")
+    Page<Product> findByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
     
     // Get products from category and all its descendant categories (inheritance)
     @Query(value = "WITH RECURSIVE category_tree AS (" +
