@@ -105,30 +105,32 @@ public class ProductController {
     @PutMapping("/{id}")
     @Transactional
     public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        return productRepository.findById(id)
-                .map(product -> {
-                    if (payload.get("productName") != null) product.setProductName((String) payload.get("productName"));
-                    if (payload.get("description") != null) product.setDescription((String) payload.get("description"));
-                    if (payload.get("basePrice") != null) product.setBasePrice(new BigDecimal(payload.get("basePrice").toString()));
-                    if (payload.get("sellerId") != null) product.setSellerId(Long.valueOf(payload.get("sellerId").toString()));
-                    if (payload.get("isActive") != null) product.setIsActive(Boolean.valueOf(payload.get("isActive").toString()));
+        Product product = productRepository.findById(id).orElse(null);
+        if (product == null) {
+            return ResponseEntity.notFound().build();
+        }
 
-                    Long categoryId = extractCategoryId(payload);
-                    if (payload.containsKey("categoryId")) {
-                        if (categoryId == null) {
-                            return ResponseEntity.<Product>badRequest().build();
-                        }
-                        Category category = categoryRepository.findById(categoryId).orElse(null);
-                        if (category == null) {
-                            return ResponseEntity.<Product>badRequest().build();
-                        }
-                        product.setCategory(category);
-                    }
-                    
-                    Product updatedProduct = productRepository.save(product);
-                    return ResponseEntity.ok(updatedProduct);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        if (payload.get("productName") != null) product.setProductName((String) payload.get("productName"));
+        if (payload.get("description") != null) product.setDescription((String) payload.get("description"));
+        if (payload.get("basePrice") != null) product.setBasePrice(new BigDecimal(payload.get("basePrice").toString()));
+        if (payload.get("sellerId") != null) product.setSellerId(Long.valueOf(payload.get("sellerId").toString()));
+        if (payload.get("isActive") != null) product.setIsActive(Boolean.valueOf(payload.get("isActive").toString()));
+
+        if (payload.containsKey("categoryId")) {
+            Long categoryId = extractCategoryId(payload);
+            if (categoryId == null) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            Category category = categoryRepository.findById(categoryId).orElse(null);
+            if (category == null) {
+                return ResponseEntity.badRequest().build();
+            }
+            product.setCategory(category);
+        }
+
+        Product updatedProduct = productRepository.save(product);
+        return ResponseEntity.ok(updatedProduct);
     }
 
     @DeleteMapping("/{id}")
