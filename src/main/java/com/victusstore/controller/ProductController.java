@@ -53,7 +53,14 @@ public class ProductController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Product> products;
         if (categoryId != null) {
-            products = productRepository.findByCategoryId(categoryId, pageable);
+            // Use inheritance to get products from category and all its descendants
+            List<Product> allProducts = productRepository.findByCategoryIdWithInheritance(categoryId);
+            int start = (int) pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), allProducts.size());
+            List<Product> pageContent = allProducts.subList(start, end);
+            products = new org.springframework.data.domain.PageImpl<>(
+                pageContent, pageable, allProducts.size()
+            );
         } else {
             products = productRepository.findAll(pageable);
         }
@@ -96,6 +103,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         return productRepository.findById(id)
                 .map(product -> {
@@ -109,12 +117,19 @@ public class ProductController {
                     if (payload.get("categoryIds") != null) {
                         @SuppressWarnings("unchecked")
                         List<Integer> categoryIds = (List<Integer>) payload.get("categoryIds");
-                        Set<Category> categories = categoryIds.stream()
-                            .map(catId -> categoryRepository.findById(catId.longValue()))
-                            .filter(java.util.Optional::isPresent)
-                            .map(java.util.Optional::get)
-                            .collect(Collectors.toSet());
-                        product.setCategories(categories);
+                        
+                        // Clear existing categories
+                        product.getCategories().clear();
+                        
+                        // Add new categories if provided
+                        if (!categoryIds.isEmpty()) {
+                            Set<Category> categories = categoryIds.stream()
+                                .map(catId -> categoryRepository.findById(catId.longValue()))
+                                .filter(java.util.Optional::isPresent)
+                                .map(java.util.Optional::get)
+                                .collect(Collectors.toSet());
+                            product.getCategories().addAll(categories);
+                        }
                     }
                     
                     Product updatedProduct = productRepository.save(product);
@@ -176,7 +191,17 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Product> products = productRepository.findByCategoryId(categoryId, pageable);
+        // Use inheritance to get products from category and all its descendants
+        List<Product> allProducts = productRepository.findByCategoryIdWithInheritance(categoryId);
+        
+        // Manual pagination for the result
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), allProducts.size());
+        List<Product> pageContent = allProducts.subList(start, end);
+        
+        Page<Product> products = new org.springframework.data.domain.PageImpl<>(
+            pageContent, pageable, allProducts.size()
+        );
         return ResponseEntity.ok(products);
     }
 }

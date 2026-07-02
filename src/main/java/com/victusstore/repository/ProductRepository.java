@@ -19,6 +19,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p JOIN p.categories c WHERE c.categoryId = :categoryId")
     Page<Product> findByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
     
+    // Get products from category and all its descendant categories (inheritance)
+    @Query(value = "WITH RECURSIVE category_tree AS (" +
+           "  SELECT category_id FROM categories WHERE category_id = :categoryId " +
+           "  UNION ALL " +
+           "  SELECT c.category_id FROM categories c " +
+           "  INNER JOIN category_tree ct ON c.parent_category_id = ct.category_id" +
+           ") " +
+           "SELECT DISTINCT p.* FROM products p " +
+           "INNER JOIN product_categories pc ON p.product_id = pc.product_id " +
+           "INNER JOIN category_tree ct ON pc.category_id = ct.category_id",
+           nativeQuery = true)
+    List<Product> findByCategoryIdWithInheritance(@Param("categoryId") Long categoryId);
+    
     List<Product> findBySellerId(Long sellerId);
     List<Product> findByIsActiveTrue();
 }

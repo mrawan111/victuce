@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS public.categories
 
 CREATE TABLE IF NOT EXISTS public.cities
 (
-    id bigserial NOT NULL,
+    id serial NOT NULL,
     name character varying(255) COLLATE pg_catalog."default" NOT NULL,
     region_code character varying(10) COLLATE pg_catalog."default" NOT NULL,
     is_other boolean DEFAULT false,
@@ -104,6 +104,21 @@ CREATE TABLE IF NOT EXISTS public.coupons
     valid_until timestamp(6) without time zone NOT NULL,
     CONSTRAINT coupons_pkey PRIMARY KEY (coupon_id),
     CONSTRAINT uk_f1u99ssbdsqass9ntq968codg UNIQUE (coupon_code)
+);
+
+CREATE TABLE IF NOT EXISTS public.flyway_schema_history
+(
+    installed_rank integer NOT NULL,
+    version character varying(50) COLLATE pg_catalog."default",
+    description character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    type character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    script character varying(1000) COLLATE pg_catalog."default" NOT NULL,
+    checksum integer,
+    installed_by character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    installed_on timestamp without time zone NOT NULL DEFAULT now(),
+    execution_time integer NOT NULL,
+    success boolean NOT NULL,
+    CONSTRAINT flyway_schema_history_pk PRIMARY KEY (installed_rank)
 );
 
 CREATE TABLE IF NOT EXISTS public.idempotency_keys
@@ -154,6 +169,13 @@ COMMENT ON COLUMN public.orders.city
 COMMENT ON COLUMN public.orders.region
     IS 'Egypt governorate/region (e.g., Cairo, Giza, Alexandria)';
 
+CREATE TABLE IF NOT EXISTS public.product_categories
+(
+    product_id bigint NOT NULL,
+    category_id bigint NOT NULL,
+    CONSTRAINT product_categories_pkey PRIMARY KEY (product_id, category_id)
+);
+
 CREATE TABLE IF NOT EXISTS public.product_variants
 (
     variant_id bigserial NOT NULL,
@@ -174,7 +196,6 @@ CREATE TABLE IF NOT EXISTS public.products
 (
     product_id bigserial NOT NULL,
     base_price numeric(10, 2) NOT NULL,
-    category_id bigint,
     created_at timestamp(6) without time zone,
     description text COLLATE pg_catalog."default",
     is_active boolean,
@@ -201,7 +222,7 @@ CREATE TABLE IF NOT EXISTS public.refresh_tokens
 
 CREATE TABLE IF NOT EXISTS public.regions
 (
-    id bigserial NOT NULL,
+    id serial NOT NULL,
     name character varying(255) COLLATE pg_catalog."default" NOT NULL,
     region_code character varying(10) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT regions_pkey PRIMARY KEY (id),
@@ -306,6 +327,24 @@ ALTER TABLE IF EXISTS public.orders
     ON DELETE NO ACTION;
 
 
+ALTER TABLE IF EXISTS public.product_categories
+    ADD CONSTRAINT fk_product_categories_category FOREIGN KEY (category_id)
+    REFERENCES public.categories (category_id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_product_categories_category_id
+    ON public.product_categories(category_id);
+
+
+ALTER TABLE IF EXISTS public.product_categories
+    ADD CONSTRAINT fk_product_categories_product FOREIGN KEY (product_id)
+    REFERENCES public.products (product_id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_product_categories_product_id
+    ON public.product_categories(product_id);
+
+
 ALTER TABLE IF EXISTS public.product_variants
     ADD CONSTRAINT fkosqitn4s405cynmhb87lkvuau FOREIGN KEY (product_id)
     REFERENCES public.products (product_id) MATCH SIMPLE
@@ -316,13 +355,6 @@ ALTER TABLE IF EXISTS public.product_variants
 ALTER TABLE IF EXISTS public.products
     ADD CONSTRAINT fkepbha8uixgrmnejm27n6e1kkd FOREIGN KEY (seller_id)
     REFERENCES public.sellers (seller_id) MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE NO ACTION;
-
-
-ALTER TABLE IF EXISTS public.products
-    ADD CONSTRAINT fkog2rp4qthbtt2lfyhfo32lsw9 FOREIGN KEY (category_id)
-    REFERENCES public.categories (category_id) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
 
