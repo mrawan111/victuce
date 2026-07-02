@@ -53,6 +53,11 @@ public class Product {
     @JsonIgnoreProperties("products")
     private Category category;
 
+    @Transient
+    public Long getCategoryId() {
+        return category != null ? category.getCategoryId() : null;
+    }
+
     @ManyToOne
     @JoinColumn(name = "seller_id", insertable = false, updatable = false)
     private Seller seller;

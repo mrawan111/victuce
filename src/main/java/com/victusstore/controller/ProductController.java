@@ -77,6 +77,11 @@ public class ProductController {
 
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Map<String, Object> payload) {
+        Long categoryId = extractCategoryId(payload);
+        if (categoryId == null) {
+            return ResponseEntity.<Product>badRequest().build();
+        }
+
         Product product = new Product();
         product.setProductName((String) payload.get("productName"));
         product.setDescription((String) payload.get("description"));
@@ -87,7 +92,11 @@ public class ProductController {
         product.setIsActive(payload.get("isActive") != null ? 
             Boolean.valueOf(payload.get("isActive").toString()) : true);
 
-        applyCategoryFromPayload(product, payload);
+        Category category = categoryRepository.findById(categoryId).orElse(null);
+        if (category == null) {
+            return ResponseEntity.<Product>badRequest().build();
+        }
+        product.setCategory(category);
 
         Product savedProduct = productRepository.save(product);
         return ResponseEntity.ok(savedProduct);
@@ -104,7 +113,17 @@ public class ProductController {
                     if (payload.get("sellerId") != null) product.setSellerId(Long.valueOf(payload.get("sellerId").toString()));
                     if (payload.get("isActive") != null) product.setIsActive(Boolean.valueOf(payload.get("isActive").toString()));
 
-                    applyCategoryFromPayload(product, payload);
+                    Long categoryId = extractCategoryId(payload);
+                    if (payload.containsKey("categoryId")) {
+                        if (categoryId == null) {
+                            return ResponseEntity.<Product>badRequest().build();
+                        }
+                        Category category = categoryRepository.findById(categoryId).orElse(null);
+                        if (category == null) {
+                            return ResponseEntity.<Product>badRequest().build();
+                        }
+                        product.setCategory(category);
+                    }
                     
                     Product updatedProduct = productRepository.save(product);
                     return ResponseEntity.ok(updatedProduct);
@@ -180,19 +199,20 @@ public class ProductController {
         return ResponseEntity.ok(products);
     }
 
-    private void applyCategoryFromPayload(Product product, Map<String, Object> payload) {
-        if (payload.containsKey("categoryId")) {
-            Object rawCategoryId = payload.get("categoryId");
-            if (rawCategoryId != null) {
-                setCategoryById(product, rawCategoryId);
-            } else {
-                product.setCategory(null);
-            }
+    private Long extractCategoryId(Map<String, Object> payload) {
+        if (!payload.containsKey("categoryId")) {
+            return null;
         }
-    }
 
-    private void setCategoryById(Product product, Object rawCategoryId) {
-        Long categoryId = Long.valueOf(rawCategoryId.toString());
-        categoryRepository.findById(categoryId).ifPresent(product::setCategory);
+        Object rawCategoryId = payload.get("categoryId");
+        if (rawCategoryId == null) {
+            return null;
+        }
+
+        try {
+            return Long.valueOf(rawCategoryId.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
