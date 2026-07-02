@@ -87,16 +87,10 @@ public class ProductController {
         product.setIsActive(payload.get("isActive") != null ? 
             Boolean.valueOf(payload.get("isActive").toString()) : true);
 
-        // Handle categories
-        if (payload.get("categoryIds") != null) {
-            @SuppressWarnings("unchecked")
-            List<Integer> categoryIds = (List<Integer>) payload.get("categoryIds");
-            Set<Category> categories = categoryIds.stream()
-                .map(id -> categoryRepository.findById(id.longValue()))
-                .filter(java.util.Optional::isPresent)
-                .map(java.util.Optional::get)
-                .collect(Collectors.toSet());
-            product.setCategories(categories);
+        // Handle single category
+        if (payload.get("categoryId") != null) {
+            Long categoryId = Long.valueOf(payload.get("categoryId").toString());
+            categoryRepository.findById(categoryId).ifPresent(product::setCategory);
         }
 
         Product savedProduct = productRepository.save(product);
@@ -114,31 +108,13 @@ public class ProductController {
                     if (payload.get("sellerId") != null) product.setSellerId(Long.valueOf(payload.get("sellerId").toString()));
                     if (payload.get("isActive") != null) product.setIsActive(Boolean.valueOf(payload.get("isActive").toString()));
                     
-                    // Handle categories - replace existing categories with new ones
-                    if (payload.containsKey("categoryIds")) {
-                        @SuppressWarnings("unchecked")
-                        List<Integer> categoryIds = (List<Integer>) payload.get("categoryIds");
-                        
-                        // Get current category IDs
-                        Set<Long> currentCategoryIds = product.getCategories().stream()
-                            .map(Category::getCategoryId)
-                            .collect(Collectors.toSet());
-                        
-                        // Get new category IDs
-                        Set<Long> newCategoryIds = categoryIds != null 
-                            ? categoryIds.stream().map(Long::valueOf).collect(Collectors.toSet())
-                            : new HashSet<>();
-                        
-                        // Remove categories that are no longer in the new list
-                        product.getCategories().removeIf(category -> !newCategoryIds.contains(category.getCategoryId()));
-                        
-                        // Add new categories that weren't in the old list
-                        if (categoryIds != null) {
-                            for (Integer catId : categoryIds) {
-                                if (!currentCategoryIds.contains(catId.longValue())) {
-                                    categoryRepository.findById(catId.longValue()).ifPresent(product.getCategories()::add);
-                                }
-                            }
+                    // Handle single category
+                    if (payload.containsKey("categoryId")) {
+                        if (payload.get("categoryId") != null) {
+                            Long categoryId = Long.valueOf(payload.get("categoryId").toString());
+                            categoryRepository.findById(categoryId).ifPresent(product::setCategory);
+                        } else {
+                            product.setCategory(null);
                         }
                     }
                     

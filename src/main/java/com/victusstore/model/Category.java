@@ -36,10 +36,6 @@ public class Category {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @ManyToMany(mappedBy = "categories")
-    @JsonIgnore
-    private Set<Product> products = new HashSet<>();
-
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

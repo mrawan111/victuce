@@ -13,11 +13,9 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByIsActive(Boolean isActive, Pageable pageable);
     
-    @Query("SELECT p FROM Product p JOIN p.categories c WHERE c.categoryId = :categoryId")
-    List<Product> findByCategoryId(@Param("categoryId") Long categoryId);
+    List<Product> findByCategoryId(Long categoryId);
     
-    @Query("SELECT p FROM Product p JOIN p.categories c WHERE c.categoryId = :categoryId")
-    Page<Product> findByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
+    Page<Product> findByCategoryId(Long categoryId, Pageable pageable);
     
     // Get products from category and all its descendant categories (inheritance)
     @Query(value = "WITH RECURSIVE category_tree AS (" +
@@ -27,8 +25,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "  INNER JOIN category_tree ct ON c.parent_category_id = ct.category_id" +
            ") " +
            "SELECT DISTINCT p.product_id FROM products p " +
-           "INNER JOIN product_categories pc ON p.product_id = pc.product_id " +
-           "INNER JOIN category_tree ct ON pc.category_id = ct.category_id",
+           "INNER JOIN category_tree ct ON p.category_id = ct.category_id",
            nativeQuery = true)
     List<Long> findProductIdsByCategoryIdWithInheritance(@Param("categoryId") Long categoryId);
     
