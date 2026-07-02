@@ -114,7 +114,7 @@ public class ProductController {
                     if (payload.get("isActive") != null) product.setIsActive(Boolean.valueOf(payload.get("isActive").toString()));
                     
                     // Handle categories - replace existing categories with new ones
-                    if (payload.get("categoryIds") != null) {
+                    if (payload.containsKey("categoryIds")) {
                         @SuppressWarnings("unchecked")
                         List<Integer> categoryIds = (List<Integer>) payload.get("categoryIds");
                         
@@ -122,7 +122,7 @@ public class ProductController {
                         product.getCategories().clear();
                         
                         // Add new categories if provided
-                        if (!categoryIds.isEmpty()) {
+                        if (categoryIds != null && !categoryIds.isEmpty()) {
                             Set<Category> categories = categoryIds.stream()
                                 .map(catId -> categoryRepository.findById(catId.longValue()))
                                 .filter(java.util.Optional::isPresent)

@@ -46,7 +46,7 @@ public class Product {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @ManyToMany(cascade = CascadeType.ALL)
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
         name = "product_categories",
         joinColumns = @JoinColumn(name = "product_id"),
