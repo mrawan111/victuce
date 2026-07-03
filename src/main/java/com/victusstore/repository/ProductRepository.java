@@ -19,12 +19,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.category.categoryId = :categoryId")
     Page<Product> findByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
     
-    // Get products from category and all its descendant categories (inheritance)
+    // Get products from this category AND all ancestor (parent) categories (upward inheritance).
+    // When browsing Category B (child of A), you also see all products directly in Category A.
     @Query(value = "WITH RECURSIVE category_tree AS (" +
-           "  SELECT category_id FROM categories WHERE category_id = :categoryId " +
+           "  SELECT category_id, parent_category_id FROM categories WHERE category_id = :categoryId " +
            "  UNION ALL " +
-           "  SELECT c.category_id FROM categories c " +
-           "  INNER JOIN category_tree ct ON c.parent_category_id = ct.category_id" +
+           "  SELECT c.category_id, c.parent_category_id FROM categories c " +
+           "  INNER JOIN category_tree ct ON c.category_id = ct.parent_category_id" +
            ") " +
            "SELECT DISTINCT p.product_id FROM products p " +
            "INNER JOIN category_tree ct ON p.category_id = ct.category_id",
