@@ -58,7 +58,7 @@ public class Order {
     @JsonIgnore
     private Account account;
 
-    @OneToMany(mappedBy = "order")
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CartProduct> orderItems;
 
     @PrePersist

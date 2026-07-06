@@ -340,6 +340,7 @@ public class OrderController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Map<String, Boolean>> deleteOrder(@PathVariable Long id) {
         return orderRepository.findById(id)
                 .map(order -> {
