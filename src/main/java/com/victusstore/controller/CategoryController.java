@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/categories")
@@ -86,16 +87,29 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Category> updateCategory(@PathVariable Long id, @RequestBody Category categoryDetails) {
-        return categoryRepository.findById(id)
-                .map(category -> {
-                    category.setCategoryName(categoryDetails.getCategoryName());
-                    category.setCategoryImage(categoryDetails.getCategoryImage());
-                    category.setIsActive(categoryDetails.getIsActive());
-                    Category updatedCategory = categoryRepository.save(category);
-                    return ResponseEntity.ok(updatedCategory);
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> updateCategory(@PathVariable Long id, @RequestBody Category categoryDetails) {
+        Category category = categoryRepository.findById(id).orElse(null);
+        if (category == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Long newParentCategoryId = categoryDetails.getParentCategoryId();
+        if (newParentCategoryId != null) {
+            if (Objects.equals(newParentCategoryId, id)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            if (!categoryRepository.existsById(newParentCategoryId) || wouldCreateCategoryCycle(id, newParentCategoryId)) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        category.setCategoryName(categoryDetails.getCategoryName());
+        category.setCategoryImage(categoryDetails.getCategoryImage());
+        category.setParentCategoryId(newParentCategoryId);
+        category.setIsActive(categoryDetails.getIsActive());
+        Category updatedCategory = categoryRepository.save(category);
+        return ResponseEntity.ok(updatedCategory);
     }
 
     @DeleteMapping("/{id}")
@@ -119,5 +133,25 @@ public class CategoryController {
                     return ResponseEntity.ok(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    private boolean wouldCreateCategoryCycle(Long categoryId, Long newParentCategoryId) {
+        List<?> ancestorIds = entityManager.createNativeQuery(
+            "WITH RECURSIVE ancestor_chain AS (" +
+            "  SELECT category_id, parent_category_id FROM categories WHERE category_id = :parentCategoryId " +
+            "  UNION ALL " +
+            "  SELECT c.category_id, c.parent_category_id FROM categories c " +
+            "  INNER JOIN ancestor_chain ac ON c.category_id = ac.parent_category_id" +
+            ") " +
+            "SELECT category_id FROM ancestor_chain"
+        )
+        .setParameter("parentCategoryId", newParentCategoryId)
+        .getResultList();
+
+        return ancestorIds.stream()
+                .filter(Number.class::isInstance)
+                .map(Number.class::cast)
+                .map(Number::longValue)
+                .anyMatch(categoryId::equals);
     }
 }

@@ -749,6 +749,7 @@ Detailed request/response examples for most endpoints are available in the secti
   {
     "categoryName": "string",
     "categoryImage": "string (URL)",
+    "parentCategoryId": 456 (optional, for hierarchy),
     "isActive": true/false
   }
   ```
